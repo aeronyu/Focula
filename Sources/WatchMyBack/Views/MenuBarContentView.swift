@@ -79,6 +79,14 @@ struct MenuBarContentView: View {
             }
             .disabled(model.isSampling)
 
+            if !model.screenRecordingPermission.isGranted {
+                Button {
+                    model.openScreenRecordingGuide()
+                } label: {
+                    Label("Open Permission Guide", systemImage: "camera.viewfinder")
+                }
+            }
+
             Text(model.statusMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)

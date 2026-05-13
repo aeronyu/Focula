@@ -63,6 +63,29 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Permissions") {
+                LabeledContent("Screen Recording", value: model.screenRecordingPermissionLabel)
+
+                HStack {
+                    Button {
+                        model.openScreenRecordingGuide()
+                    } label: {
+                        Label("Open Permission Guide", systemImage: "camera.viewfinder")
+                    }
+                    .disabled(model.screenRecordingPermission.isGranted)
+
+                    Button {
+                        model.refreshScreenRecordingPermission()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                }
+
+                Text("The guide opens System Settings and shows a draggable Watch My Back tile for Screen & System Audio Recording.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             if model.settings.modelSelection.provider != .builtInGemma {
                 Section("Provider hookup") {
                     TextField(

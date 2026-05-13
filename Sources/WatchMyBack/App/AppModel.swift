@@ -23,6 +23,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var runtimeStatuses: [ModelRuntimeStatus] = []
     @Published private(set) var isInstallingBuiltInModel = false
     @Published private(set) var isTestingModel = false
+    @Published private(set) var screenRecordingPermission = ScreenCapturePermissionDiagnostics.current()
 
     private var store: DatabaseStore?
     private let appProvider: FrontmostAppProviding
@@ -98,6 +99,21 @@ final class AppModel: ObservableObject {
 
     var selectedModelStatusText: String {
         selectedModelStatus?.statusMessage ?? settings.builtInModelStatus.statusMessage
+    }
+
+    var screenRecordingPermissionLabel: String {
+        screenRecordingPermission.isGranted ? "Enabled" : "Needs permission"
+    }
+
+    func refreshScreenRecordingPermission() {
+        screenRecordingPermission = .current()
+    }
+
+    func openScreenRecordingGuide() {
+        refreshScreenRecordingPermission()
+        if !screenRecordingPermission.isGranted {
+            ScreenRecordingPermissionPresenter.shared.present()
+        }
     }
 
     func updateEndpoint(_ value: String) {
@@ -335,6 +351,17 @@ final class AppModel: ObservableObject {
                 goal: goal,
                 appName: app.appName,
                 bundleIdentifier: app.bundleIdentifier
+            )
+        } catch ScreenSnapshotError.permissionDenied {
+            refreshScreenRecordingPermission()
+            ScreenRecordingPermissionPresenter.shared.present()
+            lastError = "Screen Recording permission is required before Watch My Back can classify activity."
+            return VisionClassifierResult(
+                focusState: .unknown,
+                activityCategory: "screen_recording_permission_missing",
+                confidence: 0,
+                evidenceCodes: ["screen_recording_permission_required"],
+                nudgeSuggested: false
             )
         } catch {
             lastError = "Screen capture unavailable: \(error.localizedDescription)"

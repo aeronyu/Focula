@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import Foundation
 import ScreenCaptureKit
 
@@ -35,14 +36,62 @@ public protocol ScreenSnapshotProviding: Sendable {
 }
 
 public enum ScreenSnapshotError: Error, Equatable {
+    case permissionDenied
     case noDisplay
     case encodingFailed
 }
 
-public struct ScreenCaptureKitSnapshotProvider: ScreenSnapshotProviding {
+public protocol ScreenCapturePermissionChecking: Sendable {
+    @MainActor
+    var hasScreenCapturePermission: Bool { get }
+}
+
+public struct SystemScreenCapturePermissionChecker: ScreenCapturePermissionChecking {
     public init() {}
 
+    public var hasScreenCapturePermission: Bool {
+        CGPreflightScreenCaptureAccess()
+    }
+}
+
+public struct ScreenCapturePermissionDiagnostics: Equatable, Sendable {
+    public var isGranted: Bool
+
+    public init(isGranted: Bool) {
+        self.isGranted = isGranted
+    }
+
+    @MainActor
+    public static func current(
+        checker: ScreenCapturePermissionChecking = SystemScreenCapturePermissionChecker()
+    ) -> ScreenCapturePermissionDiagnostics {
+        ScreenCapturePermissionDiagnostics(isGranted: checker.hasScreenCapturePermission)
+    }
+}
+
+public enum ScreenCapturePermissionGuidance {
+    public static func restartRequired(
+        requestedAt: Date?,
+        now: Date = Date(),
+        delay: TimeInterval = 1.5
+    ) -> Bool {
+        guard let requestedAt else { return false }
+        return now.timeIntervalSince(requestedAt) >= delay
+    }
+}
+
+public struct ScreenCaptureKitSnapshotProvider: ScreenSnapshotProviding {
+    private let permissionChecker: ScreenCapturePermissionChecking
+
+    public init(permissionChecker: ScreenCapturePermissionChecking = SystemScreenCapturePermissionChecker()) {
+        self.permissionChecker = permissionChecker
+    }
+
     public func captureJPEGData(maxDimension: Int = 1280, quality: CGFloat = 0.55) async throws -> Data {
+        guard permissionChecker.hasScreenCapturePermission else {
+            throw ScreenSnapshotError.permissionDenied
+        }
+
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
         guard let display = content.displays.first else {
             throw ScreenSnapshotError.noDisplay

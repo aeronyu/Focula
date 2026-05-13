@@ -23,6 +23,10 @@ struct WatchMyBackApp: App {
                     Task { await model.sampleNow(manual: true) }
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+
+                Button("Open Screen Recording Guide") {
+                    model.openScreenRecordingGuide()
+                }
             }
 
             CommandMenu("Model") {
