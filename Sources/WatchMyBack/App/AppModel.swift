@@ -20,10 +20,15 @@ final class AppModel: ObservableObject {
     @Published private(set) var statusMessage = "Paused. Resume when you want Watch My Back to observe focus hours."
     @Published private(set) var lastError: String?
     @Published private(set) var isSampling = false
+    @Published private(set) var runtimeStatuses: [ModelRuntimeStatus] = []
+    @Published private(set) var isInstallingBuiltInModel = false
+    @Published private(set) var isTestingModel = false
 
     private var store: DatabaseStore?
     private let appProvider: FrontmostAppProviding
     private let captureProvider: ScreenSnapshotProviding
+    private let builtInRuntime = BuiltInRuntimeController()
+    private let runtimeDetector = ModelRuntimeDetector()
     private let deduplicator = FrameDeduplicator()
     private let nudgeCoordinator = NudgeCoordinator()
     private var timer: Timer?
@@ -40,6 +45,7 @@ final class AppModel: ObservableObject {
             let store = try DatabaseStore(path: url.path)
             self.store = store
             settings = try store.fetchSettings()
+            settings.builtInModelStatus = builtInRuntime.currentStatus()
             let activeGoal = try store.seedDefaultGoalIfNeeded()
             selectedGoalID = activeGoal.id
             reloadFromStore()
@@ -51,6 +57,7 @@ final class AppModel: ObservableObject {
             lastError = "Local database unavailable: \(error.localizedDescription)"
         }
 
+        refreshRuntimeStatuses()
         NotificationNudgePresenter.shared.requestAuthorization()
         if !settings.paused {
             startTimer()
@@ -76,18 +83,150 @@ final class AppModel: ObservableObject {
     }
 
     var endpointString: String {
-        settings.endpoint.absoluteString
+        (settings.modelSelection.endpoint ?? settings.endpoint).absoluteString
+    }
+
+    var selectedModelStatus: ModelRuntimeStatus? {
+        runtimeStatuses.first(where: { $0.provider == settings.modelSelection.provider })
+    }
+
+    var selectedModelLabel: String {
+        settings.modelSelection.provider == .builtInGemma
+            ? BuiltInModelCatalog.gemma4E2B.displayName
+            : settings.modelSelection.displayName
+    }
+
+    var selectedModelStatusText: String {
+        selectedModelStatus?.statusMessage ?? settings.builtInModelStatus.statusMessage
     }
 
     func updateEndpoint(_ value: String) {
         guard let url = URL(string: value), url.scheme != nil else { return }
         settings.endpoint = url
+        settings.modelSelection.endpoint = url
         saveSettings()
+        refreshRuntimeStatuses()
     }
 
     func updateModelName(_ value: String) {
-        settings.model = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return }
+        settings.model = cleaned
+        settings.modelSelection.modelID = cleaned
         saveSettings()
+        refreshRuntimeStatuses()
+    }
+
+    func switchModelProvider(_ provider: ModelProvider) {
+        settings.modelSelection.provider = provider
+
+        switch provider {
+        case .builtInGemma:
+            settings.modelSelection.modelID = BuiltInModelCatalog.gemma4E2B.id
+            settings.modelSelection.endpoint = nil
+            settings.model = BuiltInModelCatalog.gemma4E2B.id
+        case .oMLX:
+            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "mlx-community/gemma-4-e2b-it" : settings.modelSelection.modelID
+            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? URL(string: "http://127.0.0.1:8123/v1/chat/completions")!
+        case .lmStudio:
+            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "local-vision" : settings.modelSelection.modelID
+            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? URL(string: "http://127.0.0.1:1234/v1/chat/completions")!
+        case .openAICompatible:
+            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? settings.model : settings.modelSelection.modelID
+            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? settings.endpoint
+        case .cloudOptIn:
+            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "cloud-vision" : settings.modelSelection.modelID
+            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? settings.endpoint
+            settings.modelSelection.cloudClassificationAllowed = false
+        }
+
+        saveSettings()
+        refreshRuntimeStatuses()
+    }
+
+    func updateCloudClassificationAllowed(_ allowed: Bool) {
+        settings.modelSelection.cloudClassificationAllowed = allowed
+        saveSettings()
+        refreshRuntimeStatuses()
+    }
+
+    func installBuiltInModel() async {
+        guard !isInstallingBuiltInModel else { return }
+        isInstallingBuiltInModel = true
+        settings.builtInModelStatus = ModelRuntimeStatus(
+            provider: .builtInGemma,
+            modelID: BuiltInModelCatalog.gemma4E2B.id,
+            installState: .downloading,
+            statusMessage: "Installing private Python runtime and downloading Gemma 4 E2B...",
+            storagePath: try? ModelSupportPaths.builtInModelRoot().path,
+            isVisionCapable: true,
+            isUsable: false
+        )
+        statusMessage = settings.builtInModelStatus.statusMessage
+        saveSettings()
+        refreshRuntimeStatuses()
+
+        do {
+            settings.builtInModelStatus = try await builtInRuntime.installDefaultModel()
+            statusMessage = "Built-in Gemma ready. Screenshots stay local and are discarded after classification."
+        } catch {
+            settings.builtInModelStatus = ModelRuntimeStatus(
+                provider: .builtInGemma,
+                modelID: BuiltInModelCatalog.gemma4E2B.id,
+                installState: .failed,
+                statusMessage: "Built-in model install failed.",
+                storagePath: try? ModelSupportPaths.builtInModelRoot().path,
+                isVisionCapable: true,
+                isUsable: false
+            )
+            lastError = error.localizedDescription
+        }
+
+        isInstallingBuiltInModel = false
+        saveSettings()
+        refreshRuntimeStatuses()
+    }
+
+    func deleteBuiltInModel() {
+        do {
+            settings.builtInModelStatus = try builtInRuntime.deleteDefaultModel()
+            statusMessage = "Built-in model removed. Install again before using built-in Gemma."
+            saveSettings()
+            refreshRuntimeStatuses()
+        } catch {
+            lastError = "Could not delete built-in model: \(error.localizedDescription)"
+        }
+    }
+
+    func pauseModelRuntime() {
+        builtInRuntime.stop()
+        statusMessage = "Built-in model sidecar paused."
+        refreshRuntimeStatuses()
+    }
+
+    func testSelectedModel() async {
+        guard !isTestingModel else { return }
+        isTestingModel = true
+        defer { isTestingModel = false }
+
+        if settings.modelSelection.provider == .builtInGemma {
+            do {
+                try await builtInRuntime.ensureRunning()
+                settings.builtInModelStatus = builtInRuntime.currentStatus()
+                statusMessage = "Built-in Gemma sidecar responded."
+            } catch {
+                lastError = error.localizedDescription
+                statusMessage = "Built-in Gemma is not ready."
+            }
+        } else if settings.modelSelection.provider == .cloudOptIn,
+                  !settings.modelSelection.cloudClassificationAllowed {
+            statusMessage = "Cloud model blocked until screenshot opt-in is enabled."
+        } else {
+            statusMessage = "Provider configured. Classification test will run on the next sample."
+        }
+
+        saveSettings()
+        refreshRuntimeStatuses()
     }
 
     func updateSampleInterval(_ value: TimeInterval) {
@@ -178,7 +317,19 @@ final class AppModel: ObservableObject {
                 )
             }
 
-            let client = LocalVisionClient(endpoint: settings.endpoint, model: settings.model)
+            if settings.modelSelection.provider == .builtInGemma {
+                guard settings.builtInModelStatus.installState == .ready else {
+                    return BuiltInGemmaClient.notReadyFallback()
+                }
+                try await builtInRuntime.ensureRunning()
+                settings.builtInModelStatus = builtInRuntime.currentStatus()
+                refreshRuntimeStatuses()
+            }
+
+            let client = ModelRouter.classifier(
+                for: settings,
+                builtInClient: BuiltInGemmaClient(endpoint: builtInRuntime.endpoint)
+            )
             return await client.classify(
                 imageData: imageData,
                 goal: goal,
@@ -212,6 +363,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func refreshRuntimeStatuses() {
+        if settings.builtInModelStatus.installState != .downloading {
+            settings.builtInModelStatus = builtInRuntime.currentStatus()
+        }
+        runtimeStatuses = runtimeDetector.statuses(
+            selected: settings.modelSelection,
+            builtInStatus: settings.builtInModelStatus
+        )
+    }
+
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: settings.sampleIntervalSeconds, repeats: true) { [weak self] _ in
@@ -237,7 +398,7 @@ final class AppModel: ObservableObject {
                 ? "Nudge sent: \(sample.appName) looked off-goal."
                 : "Off-goal detected, cooldown active."
         case .unknown:
-            "Unknown: local vision endpoint or Screen Recording permission may need setup."
+            "Unknown: model runtime or Screen Recording permission may need setup."
         }
     }
 }

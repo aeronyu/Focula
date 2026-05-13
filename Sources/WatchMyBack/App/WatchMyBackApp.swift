@@ -24,6 +24,26 @@ struct WatchMyBackApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
             }
+
+            CommandMenu("Model") {
+                Button("Test Selected Model") {
+                    Task { await model.testSelectedModel() }
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
+
+                Button("Pause Built-in Sidecar") {
+                    model.pauseModelRuntime()
+                }
+
+                Divider()
+
+                ForEach(ModelProvider.allCases) { provider in
+                    Button(provider.displayName) {
+                        model.switchModelProvider(provider)
+                    }
+                    .disabled(provider == model.settings.modelSelection.provider)
+                }
+            }
         }
 
         MenuBarExtra {

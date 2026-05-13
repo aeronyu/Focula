@@ -1,30 +1,104 @@
 import SwiftUI
+import WatchMyBackCore
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
         Form {
-            Section("Local vision endpoint") {
-                TextField(
-                    "Endpoint",
-                    text: Binding(
-                        get: { model.endpointString },
-                        set: { model.updateEndpoint($0) }
+            Section("Model") {
+                Picker(
+                    "Runtime",
+                    selection: Binding(
+                        get: { model.settings.modelSelection.provider },
+                        set: { model.switchModelProvider($0) }
                     )
-                )
+                ) {
+                    ForEach(ModelProvider.allCases) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
 
-                TextField(
-                    "Model",
-                    text: Binding(
-                        get: { model.settings.model },
-                        set: { model.updateModelName($0) }
-                    )
-                )
+                LabeledContent("Current", value: model.selectedModelLabel)
+                LabeledContent("Status", value: model.selectedModelStatusText)
+            }
 
-                Text("OpenAI-compatible vision endpoint. Screenshots are sent only to this local URL and then discarded.")
+            Section("Built-in local model") {
+                LabeledContent("Default", value: BuiltInModelCatalog.gemma4E2B.displayName)
+                LabeledContent("Size", value: BuiltInModelCatalog.gemma4E2B.estimatedDownloadSize)
+                LabeledContent("Memory", value: BuiltInModelCatalog.gemma4E2B.expectedMemory)
+
+                if let path = model.settings.builtInModelStatus.storagePath {
+                    LabeledContent("Storage", value: path)
+                }
+
+                HStack {
+                    Button {
+                        Task { await model.installBuiltInModel() }
+                    } label: {
+                        Label(
+                            model.settings.builtInModelStatus.installState == .ready ? "Reinstall" : "Install",
+                            systemImage: "arrow.down.circle"
+                        )
+                    }
+                    .disabled(model.isInstallingBuiltInModel)
+
+                    Button {
+                        model.deleteBuiltInModel()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                    .disabled(model.settings.builtInModelStatus.installState == .missing || model.isInstallingBuiltInModel)
+
+                    Button {
+                        Task { await model.testSelectedModel() }
+                    } label: {
+                        Label("Test", systemImage: "checkmark.circle")
+                    }
+                    .disabled(model.isTestingModel || model.isInstallingBuiltInModel)
+                }
+
+                Text(BuiltInModelCatalog.gemma4E2B.localOnlyNotice)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+
+            if model.settings.modelSelection.provider != .builtInGemma {
+                Section("Provider hookup") {
+                    TextField(
+                        "Endpoint",
+                        text: Binding(
+                            get: { model.endpointString },
+                            set: { model.updateEndpoint($0) }
+                        )
+                    )
+
+                    TextField(
+                        "Model",
+                        text: Binding(
+                            get: { model.settings.modelSelection.modelID },
+                            set: { model.updateModelName($0) }
+                        )
+                    )
+
+                    if model.settings.modelSelection.provider == .cloudOptIn {
+                        Toggle(
+                            "Allow screenshots to leave this Mac",
+                            isOn: Binding(
+                                get: { model.settings.modelSelection.cloudClassificationAllowed },
+                                set: { model.updateCloudClassificationAllowed($0) }
+                            )
+                        )
+
+                        Text("Cloud classification stays blocked until this is enabled.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text("Optional providers are used only when already available. Built-in Gemma remains the default path.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             Section("Sampling") {

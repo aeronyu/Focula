@@ -20,7 +20,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "WatchMyBack",
-            dependencies: ["WatchMyBackCore"]
+            dependencies: ["WatchMyBackCore"],
+            resources: [
+                .copy("Resources")
+            ]
         ),
         .testTarget(
             name: "WatchMyBackCoreTests",

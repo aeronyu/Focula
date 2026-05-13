@@ -1,6 +1,6 @@
 # Watch My Back
 
-Watch My Back is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a local OpenAI-compatible vision model, and nudges you when your work drifts off mission.
+Watch My Back is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a built-in local Gemma vision model, and nudges you when your work drifts off mission.
 
 ## Privacy model
 
@@ -8,16 +8,33 @@ Watch My Back is a local-first macOS focus coach. It lets you define a few goals
 - Raw screenshots, OCR text, and visible text are not stored in SQLite.
 - Persisted records contain only metadata: app name, bundle id, goal id, focus state, category, confidence, duration, and whether a nudge was shown.
 - Tracking is paused by default. Resume it from the dashboard or menu bar extra.
+- Cloud model providers are blocked unless the user explicitly opts in to sending screenshots off-device.
 
-## Local model endpoint
+## Built-in model
 
-Default endpoint:
+Default provider: `builtInGemma`.
 
-```text
-http://127.0.0.1:1234/v1/chat/completions
-```
+The app manages a private runtime under Application Support and downloads the default Gemma 4 E2B vision model after the user clicks Install. Model weights are not committed to this repo.
 
-Use any local OpenAI-compatible vision server, such as LM Studio or another local runtime that accepts image messages.
+Default model:
+
+- Repository: `google/gemma-4-E2B-it`
+- Runtime path: `~/Library/Application Support/Watch My Back/BuiltInRuntime`
+- Model path: `~/Library/Application Support/Watch My Back/BuiltInRuntime/Models`
+- Sidecar: app-owned loopback service at `127.0.0.1:8765` while the app is running
+
+The built-in sidecar is isolated behind `VisionClassifying`, so a native Swift MLX runtime can replace it later without changing UI or storage contracts.
+
+## Optional providers
+
+Settings and the menu bar model menu can switch to optional provider hooks:
+
+- `oMLX`, when `omlx-cli` is already present.
+- `lmStudio`, when `lms` is already present.
+- `openAICompatible`, for manual local endpoints.
+- `cloudOptIn`, blocked until the user enables screenshot egress.
+
+Ollama is intentionally out of scope.
 
 ## Build and run
 
@@ -29,7 +46,7 @@ Use any local OpenAI-compatible vision server, such as LM Studio or another loca
 Run tests:
 
 ```bash
-swift test
+rtk swift test
 ```
 
 The app may request Notification permission and Screen & System Audio Recording permission when you resume tracking or manually sample.
