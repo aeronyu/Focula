@@ -49,7 +49,14 @@ struct DashboardView: View {
                     Label("Sample Now", systemImage: "camera.metering.matrix")
                 }
                 .disabled(model.isSampling)
+
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
             }
+        }
+        .onAppear {
+            model.refreshScreenRecordingPermission()
         }
     }
 }
@@ -83,7 +90,46 @@ private struct MissionHeader: View {
                     .padding(10)
                     .background(.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
             }
+
+            if !model.screenRecordingPermission.isGranted {
+                PermissionStatusBanner()
+            }
         }
+    }
+}
+
+private struct PermissionStatusBanner: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "camera.viewfinder")
+                .font(.title3)
+                .foregroundStyle(.orange)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Screen Recording permission needed")
+                    .font(.headline)
+                Text("Watch My Back cannot classify screenshots until it is enabled for the signed app bundle.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                model.openScreenRecordingGuide()
+            } label: {
+                Label("Open Guide", systemImage: "arrow.up.right.square")
+            }
+
+            SettingsLink {
+                Label("Settings", systemImage: "gearshape")
+            }
+        }
+        .padding(14)
+        .background(.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 

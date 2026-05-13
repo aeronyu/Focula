@@ -33,6 +33,7 @@ final class AppModel: ObservableObject {
     private let deduplicator = FrameDeduplicator()
     private let nudgeCoordinator = NudgeCoordinator()
     private var timer: Timer?
+    private var permissionRefreshTimer: Timer?
 
     init(
         appProvider: FrontmostAppProviding = NSWorkspaceFrontmostAppProvider(),
@@ -59,6 +60,7 @@ final class AppModel: ObservableObject {
         }
 
         refreshRuntimeStatuses()
+        startPermissionRefreshTimer()
         NotificationNudgePresenter.shared.requestAuthorization()
         if !settings.paused {
             startTimer()
@@ -412,6 +414,15 @@ final class AppModel: ObservableObject {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private func startPermissionRefreshTimer() {
+        permissionRefreshTimer?.invalidate()
+        permissionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshScreenRecordingPermission()
+            }
+        }
     }
 
     private func statusText(for sample: ActivitySample, goal: Goal) -> String {

@@ -61,7 +61,7 @@ struct WatchMyBackApp: App {
         Settings {
             SettingsView()
                 .environmentObject(model)
-                .frame(width: 520)
+                .frame(width: 760, height: 820)
         }
     }
 }

@@ -43,6 +43,14 @@ Ollama is intentionally out of scope.
 ./script/build_and_run.sh --verify
 ```
 
+The run script stages a normal app bundle at `dist/WatchMyBack.app`, copies SwiftPM resources, and signs the bundle. It uses the first available Apple Development identity by default; override with:
+
+```bash
+WMB_CODESIGN_IDENTITY="Apple Development: Name (TEAMID)" ./script/build_and_run.sh
+```
+
+If Screen Recording was granted to an older unsigned build, remove the old Watch My Back row in System Settings, rebuild through the script, then use the in-app permission guide to grant the newly signed app.
+
 Run tests:
 
 ```bash
