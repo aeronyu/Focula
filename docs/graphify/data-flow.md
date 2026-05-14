@@ -23,6 +23,22 @@ Timer or manual Sample Now
   -> Dashboard/MenuBar UI
 ```
 
+## Dashboard presentation flow
+
+```text
+ActivitySample.activityCategory / focusState
+  -> DashboardCopy.activitySummary(for:)
+  -> ActivityObservationRow
+  -> Recent Activity list
+
+Recent ActivitySample window
+  -> DriftStatusCard
+  -> Recent alignment message
+  -> NextStepCard
+```
+
+The dashboard should present human-readable mission insight and should not expose raw snake_case classifier categories as primary UI.
+
 ## Built-in model data flow
 
 ```text
@@ -31,6 +47,12 @@ SettingsView install button
   -> AppModel.installBuiltInModel()
   -> BuiltInRuntimeController.installModel(...)
   -> Python venv and model files under Application Support
+
+SettingsView delete button
+  -> destructive confirmation dialog
+  -> AppModel.deleteBuiltInModel()
+  -> BuiltInRuntimeController.deleteModel(...)
+  -> remove selected model directory when present
 
 Screen classification with built-in runtime
   -> BuiltInRuntimeController.ensureRunning(...)
@@ -67,4 +89,4 @@ Goal
   -> goals table
 ```
 
-Only metadata should flow into SQLite.
+Only metadata should flow into SQLite. If short activity summaries are added later, define their privacy/redaction rules before persisting them.
