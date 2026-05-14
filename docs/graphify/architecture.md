@@ -1,6 +1,6 @@
 # Architecture
 
-Watch My Back is a local-first macOS focus coach. The app samples the frontmost app and an ephemeral screenshot during focus windows, classifies the activity against the active goal, stores only metadata, and nudges when work drifts off mission.
+Watch My Back is a local-first macOS focus coach. The app samples the frontmost app and an ephemeral screenshot during focus windows, classifies the activity against the active goal, stores only safe metadata, and nudges when work drifts off mission.
 
 ## Runtime shape
 
@@ -19,6 +19,16 @@ AppModel
         +-- NotificationNudgePresenter   local notification
 ```
 
+## Product model
+
+The app should feel like a mission/activity coach, not an app allowlist/blocklist tool.
+
+- Goals represent natural-language intent, such as interview prep or a project milestone.
+- Each goal has its own focus schedule.
+- The dashboard presents mission alignment, recent activity, drift/recovery status, and next steps.
+- Raw model category strings and internal rules should not be primary UI.
+- Allowed/blocked apps and examples can remain configuration hints, but the dashboard should focus on interpreted activity.
+
 ## Provider architecture
 
 `ModelSelection` chooses one of:
@@ -35,6 +45,7 @@ AppModel
 
 ```text
 SettingsView
+  -> install confirmation
   -> AppModel.installBuiltInModel
   -> BuiltInRuntimeController.installModel
   -> private Python venv
@@ -61,7 +72,7 @@ It should not persist screenshot bytes, OCR text, visible text, model prompts, o
 
 ## UI surfaces
 
-- `DashboardView`: mission status, metrics, recent samples, and goal rules.
+- `DashboardView`: mission status, metrics, human-readable recent activity, focus window, recent alignment, and next-step guidance.
 - `GoalListView`: mission list and tracking status.
 - `MenuBarContentView`: quick status and controls.
-- `SettingsView`: model runtime, permissions, provider hookup, and sampling settings.
+- `SettingsView`: model runtime, install/delete confirmations, permissions, provider hookup, and sampling settings.
