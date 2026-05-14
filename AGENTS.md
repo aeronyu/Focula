@@ -10,6 +10,20 @@ Shell -> `rtk <cmd>` first. RTK hook block -> retry suggested `rtk` cmd.
 
 @/Users/greenpoke/.codex/RTK.md
 
+## Superpowers-inspired workflow
+
+Follow the spirit of `obra/superpowers` for non-trivial product/code changes:
+
+- Do not jump straight into broad coding when the product behavior is unclear.
+- First clarify the target behavior and capture a short design/spec in an issue or doc.
+- Break implementation into small, reviewable slices.
+- Prefer simple, evidence-backed changes over large speculative systems.
+- Use tests or practical verification before claiming a fix is done.
+- Keep UI/design changes tied to the actual product goal, not just decoration.
+- For the dashboard specifically: useful first, playful second; mission-centered; gentle coaching; no raw internals; progressive disclosure; lightweight gamification; evidence before claims.
+
+Relevant design issue: #2 “Dashboard design spec: playful but useful focus coach”.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
