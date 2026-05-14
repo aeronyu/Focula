@@ -5,6 +5,7 @@ struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
     @State private var showInstallConfirmation = false
     @State private var showDeleteConfirmation = false
+    @State private var selectedModelFolderPaths: Set<String> = []
 
     var body: some View {
         Form {
@@ -57,6 +58,50 @@ struct SettingsView: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Installed folders")
+                            .font(.subheadline)
+                        Spacer()
+                        Button {
+                            model.refreshBuiltInModelFolders()
+                            syncSelectedModelFoldersIfNeeded()
+                        } label: {
+                            Label("Refresh", systemImage: "arrow.clockwise")
+                        }
+                    }
+
+                    if model.builtInModelFolders.isEmpty {
+                        Text("No built-in model folders found.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.builtInModelFolders) { folder in
+                            Toggle(
+                                isOn: Binding(
+                                    get: { selectedModelFolderPaths.contains(folder.path) },
+                                    set: { isSelected in
+                                        if isSelected {
+                                            selectedModelFolderPaths.insert(folder.path)
+                                        } else {
+                                            selectedModelFolderPaths.remove(folder.path)
+                                        }
+                                    }
+                                )
+                            ) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(folder.displayName)
+                                    Text(folder.folderName)
+                                        .font(.caption.monospaced())
+                                        .foregroundStyle(folder.isLegacy ? .orange : .secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 HStack {
                     Button {
                         showInstallConfirmation = true
@@ -71,12 +116,9 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
                     } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label("Delete Selected", systemImage: "trash")
                     }
-                    // Keep Delete available even when the status is "missing" because a failed or partial
-                    // download can leave a model directory without config.json. deleteBuiltInModel() is safe
-                    // when the folder is absent and cleans up partial downloads when it exists.
-                    .disabled(model.isInstallingBuiltInModel)
+                    .disabled(model.isInstallingBuiltInModel || selectedModelFolderPaths.isEmpty)
 
                     Button {
                         Task { await model.testSelectedModel() }
@@ -173,6 +215,14 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            model.refreshBuiltInModelFolders()
+            syncSelectedModelFoldersIfNeeded()
+        }
+        .onChange(of: model.builtInModelFolders) { _, _ in
+            selectedModelFolderPaths = selectedModelFolderPaths.intersection(Set(model.builtInModelFolders.map(\.path)))
+            syncSelectedModelFoldersIfNeeded()
+        }
         .alert(installConfirmationTitle, isPresented: $showInstallConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button(model.settings.builtInModelStatus.installState == .ready ? "Reinstall" : "Download") {
@@ -181,10 +231,11 @@ struct SettingsView: View {
         } message: {
             Text(installConfirmationMessage)
         }
-        .alert("Delete built-in model?", isPresented: $showDeleteConfirmation) {
+        .alert("Delete selected model folders?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                model.deleteBuiltInModel()
+            Button("Delete Folders", role: .destructive) {
+                model.deleteBuiltInModelFolders(paths: selectedModelFolderPaths)
+                selectedModelFolderPaths.removeAll()
             }
         } message: {
             Text(deleteConfirmationMessage)
@@ -203,8 +254,18 @@ struct SettingsView: View {
     }
 
     private var deleteConfirmationMessage: String {
-        let descriptor = model.selectedBuiltInModelDescriptor
-        let path = model.settings.builtInModelStatus.storagePath ?? "the built-in model storage folder"
-        return "This removes \(descriptor.displayName) from \(path). You can download it again later."
+        let names = model.builtInModelFolders
+            .filter { selectedModelFolderPaths.contains($0.path) }
+            .map(\.folderName)
+            .joined(separator: ", ")
+        return "This removes only the selected folder\(selectedModelFolderPaths.count == 1 ? "" : "s"): \(names). Other downloaded models stay on this Mac."
+    }
+
+    private func syncSelectedModelFoldersIfNeeded() {
+        guard selectedModelFolderPaths.isEmpty else { return }
+        let currentPath = model.settings.builtInModelStatus.storagePath
+        if let current = model.builtInModelFolders.first(where: { $0.path == currentPath }) {
+            selectedModelFolderPaths = [current.path]
+        }
     }
 }

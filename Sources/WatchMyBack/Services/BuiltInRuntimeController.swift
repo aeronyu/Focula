@@ -112,12 +112,24 @@ final class BuiltInRuntimeController {
     }
 
     func deleteModel(_ descriptor: BuiltInModelDescriptor) throws -> ModelRuntimeStatus {
-        stop()
-        let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
-        if FileManager.default.fileExists(atPath: modelRoot.path) {
-            try FileManager.default.removeItem(at: modelRoot)
-        }
+        try deleteModelFolders(paths: [ModelSupportPaths.builtInModelRoot(for: descriptor).path])
         return currentStatus(for: descriptor)
+    }
+
+    func deleteModelFolders(paths: [String]) throws {
+        stop()
+        let modelsRoot = try ModelSupportPaths.builtInModelsRoot().standardizedFileURL.path
+        let safeRootPrefix = modelsRoot.hasSuffix("/") ? modelsRoot : "\(modelsRoot)/"
+
+        for path in Set(paths) {
+            let url = URL(fileURLWithPath: path).standardizedFileURL
+            guard url.path.hasPrefix(safeRootPrefix) else {
+                throw BuiltInRuntimeError.unsafeModelDeletePath(path)
+            }
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+        }
     }
 
     func ensureRunning(model descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) async throws {
@@ -223,6 +235,7 @@ enum BuiltInRuntimeError: LocalizedError {
     case notInstalled
     case missingSidecarScript
     case processFailed(String)
+    case unsafeModelDeletePath(String)
 
     var errorDescription: String? {
         switch self {
@@ -232,6 +245,8 @@ enum BuiltInRuntimeError: LocalizedError {
             "Built-in sidecar script is missing from the app bundle."
         case .processFailed(let output):
             "Built-in runtime command failed: \(output)"
+        case .unsafeModelDeletePath(let path):
+            "Refusing to delete a path outside Watch My Back model storage: \(path)"
         }
     }
 }

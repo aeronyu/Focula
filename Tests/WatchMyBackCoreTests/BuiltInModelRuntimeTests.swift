@@ -55,4 +55,18 @@ final class BuiltInModelRuntimeTests: XCTestCase {
             "mlx-community__gemma-4-e2b-it-8bit"
         )
     }
+
+    func testModelFolderMetadataRecognizesCatalogAndLegacyFolders() {
+        let catalogFolder = ModelSupportPaths.builtInModelFolder(
+            for: URL(fileURLWithPath: "/tmp/mlx-community__gemma-4-e2b-it-4bit")
+        )
+        let legacyFolder = ModelSupportPaths.builtInModelFolder(
+            for: URL(fileURLWithPath: "/tmp/google__gemma-4-E2B-it")
+        )
+
+        XCTAssertEqual(catalogFolder.displayName, BuiltInModelCatalog.defaultModel.displayName)
+        XCTAssertFalse(catalogFolder.isLegacy)
+        XCTAssertEqual(legacyFolder.modelID, BuiltInModelCatalog.defaultModel.id)
+        XCTAssertTrue(legacyFolder.isLegacy)
+    }
 }

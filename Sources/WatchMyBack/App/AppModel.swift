@@ -25,6 +25,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isInstallingBuiltInModel = false
     @Published private(set) var isTestingModel = false
     @Published private(set) var screenRecordingPermission = ScreenCapturePermissionDiagnostics.current()
+    @Published private(set) var builtInModelFolders: [BuiltInModelFolder] = []
 
     private var store: DatabaseStore?
     private let appProvider: FrontmostAppProviding
@@ -63,6 +64,7 @@ final class AppModel: ObservableObject {
         }
 
         refreshRuntimeStatuses()
+        refreshBuiltInModelFolders()
         startPermissionRefreshTimer()
         NotificationNudgePresenter.shared.requestAuthorization()
         if !settings.paused {
@@ -132,6 +134,7 @@ final class AppModel: ObservableObject {
         do {
             let url = try ModelSupportPaths.builtInModelsRoot()
             NSWorkspace.shared.open(url)
+            refreshBuiltInModelFolders()
         } catch {
             lastError = "Could not open model folder: \(error.localizedDescription)"
         }
@@ -242,17 +245,24 @@ final class AppModel: ObservableObject {
         isInstallingBuiltInModel = false
         saveSettings()
         refreshRuntimeStatuses()
+        refreshBuiltInModelFolders()
     }
 
     func deleteBuiltInModel() {
+        deleteBuiltInModelFolders(paths: Set(settings.builtInModelStatus.storagePath.map { [$0] } ?? []))
+    }
+
+    func deleteBuiltInModelFolders(paths: Set<String>) {
         do {
-            let descriptor = selectedBuiltInModelDescriptor
-            settings.builtInModelStatus = try builtInRuntime.deleteModel(descriptor)
-            statusMessage = "\(descriptor.displayName) removed. Install it again before using this built-in model."
+            let deletedCount = paths.count
+            try builtInRuntime.deleteModelFolders(paths: Array(paths))
+            settings.builtInModelStatus = builtInRuntime.currentStatus(for: selectedBuiltInModelDescriptor)
+            statusMessage = "Deleted \(deletedCount) selected model folder\(deletedCount == 1 ? "" : "s")."
             saveSettings()
             refreshRuntimeStatuses()
+            refreshBuiltInModelFolders()
         } catch {
-            lastError = "Could not delete built-in model: \(error.localizedDescription)"
+            lastError = "Could not delete selected model folders: \(error.localizedDescription)"
         }
     }
 
@@ -445,6 +455,15 @@ final class AppModel: ObservableObject {
             selected: settings.modelSelection,
             builtInStatus: settings.builtInModelStatus
         )
+    }
+
+    func refreshBuiltInModelFolders() {
+        do {
+            builtInModelFolders = try ModelSupportPaths.installedBuiltInModelFolders()
+        } catch {
+            lastError = "Could not inspect built-in model folders: \(error.localizedDescription)"
+            builtInModelFolders = []
+        }
     }
 
     private func normalizeBuiltInModelSelection() {

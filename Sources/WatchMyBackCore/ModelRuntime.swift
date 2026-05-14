@@ -83,6 +83,29 @@ public struct ModelRuntimeDetector {
     }
 }
 
+public struct BuiltInModelFolder: Identifiable, Equatable, Sendable {
+    public var id: String { path }
+    public var path: String
+    public var folderName: String
+    public var displayName: String
+    public var modelID: String?
+    public var isLegacy: Bool
+
+    public init(
+        path: String,
+        folderName: String,
+        displayName: String,
+        modelID: String?,
+        isLegacy: Bool
+    ) {
+        self.path = path
+        self.folderName = folderName
+        self.displayName = displayName
+        self.modelID = modelID
+        self.isLegacy = isLegacy
+    }
+}
+
 public enum ModelSupportPaths {
     public static let appSupportFolderName = "Watch My Back"
 
@@ -116,16 +139,72 @@ public enum ModelSupportPaths {
         for descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel,
         fileManager: FileManager = .default
     ) throws -> URL {
-        let folder = try builtInModelsRoot(fileManager: fileManager)
-            .appendingPathComponent(storageFolderName(for: descriptor.repository), isDirectory: true)
+        let folder = try builtInModelRoot(forRepository: descriptor.repository, fileManager: fileManager)
         try fileManager.createDirectory(at: folder.deletingLastPathComponent(), withIntermediateDirectories: true)
         return folder
+    }
+
+    public static func builtInModelRoot(
+        forRepository repository: String,
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        try builtInModelsRoot(fileManager: fileManager)
+            .appendingPathComponent(storageFolderName(for: repository), isDirectory: true)
     }
 
     public static func storageFolderName(for repository: String) -> String {
         repository
             .replacingOccurrences(of: "/", with: "__")
             .replacingOccurrences(of: ":", with: "_")
+    }
+
+    public static func installedBuiltInModelFolders(fileManager: FileManager = .default) throws -> [BuiltInModelFolder] {
+        let root = try builtInModelsRoot(fileManager: fileManager)
+        guard fileManager.fileExists(atPath: root.path) else { return [] }
+
+        let urls = try fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+
+        return try urls.compactMap { url in
+            let values = try url.resourceValues(forKeys: [.isDirectoryKey])
+            guard values.isDirectory == true else { return nil }
+            return builtInModelFolder(for: url)
+        }
+        .sorted { $0.folderName.localizedCaseInsensitiveCompare($1.folderName) == .orderedAscending }
+    }
+
+    public static func builtInModelFolder(for url: URL) -> BuiltInModelFolder {
+        let folderName = url.lastPathComponent
+        if let descriptor = BuiltInModelCatalog.all.first(where: { storageFolderName(for: $0.repository) == folderName }) {
+            return BuiltInModelFolder(
+                path: url.path,
+                folderName: folderName,
+                displayName: descriptor.displayName,
+                modelID: descriptor.id,
+                isLegacy: false
+            )
+        }
+
+        if let legacyRepository = BuiltInModelCatalog.legacyDefaultRepositories.first(where: { storageFolderName(for: $0) == folderName }) {
+            return BuiltInModelFolder(
+                path: url.path,
+                folderName: folderName,
+                displayName: "Legacy Gemma folder (\(legacyRepository))",
+                modelID: BuiltInModelCatalog.defaultModel.id,
+                isLegacy: true
+            )
+        }
+
+        return BuiltInModelFolder(
+            path: url.path,
+            folderName: folderName,
+            displayName: folderName,
+            modelID: nil,
+            isLegacy: false
+        )
     }
 
     public static func pythonEnvironmentRoot(fileManager: FileManager = .default) throws -> URL {

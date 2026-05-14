@@ -28,7 +28,7 @@ Storage:
 - Model path: `~/Library/Application Support/Watch My Back/BuiltInRuntime/Models`
 - Sidecar: app-owned loopback service at `127.0.0.1:8765` while the app is running
 
-Older settings that pointed at `google/gemma-4-E2B-it` are migrated to the recommended MLX 4-bit built-in model.
+Older settings that pointed at `google/gemma-4-E2B-it` are migrated to the recommended MLX 4-bit built-in model. Settings lists installed model folders, including legacy folders such as `google__gemma-4-E2B-it`, and Delete removes only the folders the user selects.
 
 The built-in sidecar is isolated behind `VisionClassifying`, so a native Swift MLX runtime can replace it later without changing UI or storage contracts.
 
