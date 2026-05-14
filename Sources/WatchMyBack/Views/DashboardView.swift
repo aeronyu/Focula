@@ -7,13 +7,13 @@ struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                MissionHeader()
+                MissionHeroCard()
 
                 HStack(alignment: .top, spacing: 16) {
                     FocusRingCard()
-                    MetricTile(title: "Focus", value: DisplayFormatters.minutes(model.stats.focusSeconds), icon: "bolt.fill", tint: .green)
-                    MetricTile(title: "Recoveries", value: "\(model.stats.recoveryCount)", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
-                    MetricTile(title: "XP", value: "\(model.stats.xp)", icon: "sparkles", tint: .purple)
+                    MetricTile(title: "Focus Loot", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "banked today", icon: "bolt.fill", tint: .green)
+                    MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "hero recoveries", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
+                    MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .purple)
                 }
 
                 HStack(alignment: .top, spacing: 16) {
@@ -24,15 +24,33 @@ struct DashboardView: View {
             .padding(24)
         }
         .background {
-            LinearGradient(
-                colors: [
-                    Color(nsColor: .windowBackgroundColor),
-                    Color.green.opacity(0.05),
-                    Color.orange.opacity(0.04)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color.purple.opacity(0.13),
+                        Color.cyan.opacity(0.10),
+                        Color.orange.opacity(0.12),
+                        Color(nsColor: .windowBackgroundColor)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Circle()
+                    .fill(Color.pink.opacity(0.12))
+                    .frame(width: 420, height: 420)
+                    .blur(radius: 50)
+                    .offset(x: -360, y: -240)
+                Circle()
+                    .fill(Color.yellow.opacity(0.14))
+                    .frame(width: 360, height: 360)
+                    .blur(radius: 60)
+                    .offset(x: 420, y: -120)
+                Circle()
+                    .fill(Color.mint.opacity(0.13))
+                    .frame(width: 320, height: 320)
+                    .blur(radius: 60)
+                    .offset(x: 260, y: 360)
+            }
             .ignoresSafeArea()
         }
         .toolbar {
@@ -40,13 +58,13 @@ struct DashboardView: View {
                 Button {
                     model.togglePaused()
                 } label: {
-                    Label(model.settings.paused ? "Resume" : "Pause", systemImage: model.settings.paused ? "play.fill" : "pause.fill")
+                    Label(model.settings.paused ? "Begin Quest" : "Pause Quest", systemImage: model.settings.paused ? "play.fill" : "pause.fill")
                 }
 
                 Button {
                     Task { await model.sampleNow(manual: true) }
                 } label: {
-                    Label("Sample Now", systemImage: "camera.metering.matrix")
+                    Label("Scout Now", systemImage: "camera.metering.matrix")
                 }
                 .disabled(model.isSampling)
 
@@ -61,40 +79,108 @@ struct DashboardView: View {
     }
 }
 
-private struct MissionHeader: View {
+private struct MissionHeroCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 18) {
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.26))
+                    Text(heroEmoji)
+                        .font(.system(size: 48))
+                }
+                .frame(width: 82, height: 82)
+                .shadow(color: Color.purple.opacity(0.18), radius: 18, x: 0, y: 10)
+
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(model.selectedGoal?.title ?? "No mission selected")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                    Text("Today’s Quest")
+                        .font(.caption.bold())
+                        .textCase(.uppercase)
+                        .tracking(1.2)
+                        .foregroundStyle(.secondary)
+                    Text(model.selectedGoal?.title ?? "Choose your next quest")
+                        .font(.system(size: 36, weight: .heavy, design: .rounded))
+                        .lineLimit(2)
                     Text(model.statusMessage)
                         .font(.headline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
+
                 Spacer()
-                Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
-                    .font(.headline)
-                    .foregroundStyle(model.lastFocusState.tint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.regularMaterial, in: Capsule())
+
+                VStack(alignment: .trailing, spacing: 10) {
+                    Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
+                        .font(.headline)
+                        .foregroundStyle(model.lastFocusState.tint)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .background(.white.opacity(0.32), in: Capsule())
+
+                    Text("Level \(missionLevel)")
+                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    Text("\(nextLevelXP) XP to next level")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+
+            ProgressView(value: levelProgress)
+                .progressViewStyle(.linear)
+                .tint(.purple)
+                .scaleEffect(x: 1, y: 1.4, anchor: .center)
 
             if let lastError = model.lastError {
                 Label(lastError, systemImage: "info.circle")
                     .font(.callout)
                     .foregroundStyle(.orange)
                     .padding(10)
-                    .background(.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
             }
 
             if !model.screenRecordingPermission.isGranted {
                 PermissionStatusBanner()
             }
         }
+        .padding(24)
+        .background(heroBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(.white.opacity(0.22), lineWidth: 1)
+        }
+        .shadow(color: Color.purple.opacity(0.18), radius: 24, x: 0, y: 16)
+    }
+
+    private var heroEmoji: String {
+        switch model.lastFocusState {
+        case .onGoal: return "🚀"
+        case .maybe: return "🧭"
+        case .offGoal: return "🛟"
+        case .unknown: return "✨"
+        }
+    }
+
+    private var missionLevel: Int {
+        max(1, model.stats.xp / 120 + 1)
+    }
+
+    private var nextLevelXP: Int {
+        let nextThreshold = missionLevel * 120
+        return max(0, nextThreshold - model.stats.xp)
+    }
+
+    private var levelProgress: Double {
+        Double(model.stats.xp % 120) / 120.0
+    }
+
+    private var heroBackground: LinearGradient {
+        LinearGradient(
+            colors: [Color.purple.opacity(0.18), Color.cyan.opacity(0.14), Color.orange.opacity(0.13)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }
 
@@ -109,9 +195,9 @@ private struct PermissionStatusBanner: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("Screen Recording permission needed")
+                Text("Unlock screen scouting")
                     .font(.headline)
-                Text("Watch My Back cannot classify screenshots until it is enabled for the signed app bundle.")
+                Text("Enable Screen Recording so your local model can understand the quest board.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -129,7 +215,7 @@ private struct PermissionStatusBanner: View {
             }
         }
         .padding(14)
-        .background(.orange.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -138,54 +224,85 @@ private struct FocusRingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Mission Sync")
-                .font(.headline)
+            HStack {
+                Text("Quest Sync")
+                    .font(.headline)
+                Spacer()
+                Text(syncBadge)
+                    .font(.caption.bold())
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.green.opacity(0.14), in: Capsule())
+            }
             ZStack {
                 Circle()
-                    .stroke(.secondary.opacity(0.18), lineWidth: 14)
+                    .stroke(.white.opacity(0.45), lineWidth: 16)
                 Circle()
                     .trim(from: 0, to: min(model.stats.focusRatio, 1))
-                    .stroke(.green.gradient, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+                    .stroke(.green.gradient, style: StrokeStyle(lineWidth: 16, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 4) {
                     Text(DisplayFormatters.percent(model.stats.focusRatio))
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
                     Text("aligned")
-                        .font(.caption)
+                        .font(.caption.bold())
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 132, height: 132)
+            .frame(width: 138, height: 138)
         }
         .padding(18)
-        .frame(width: 190, alignment: .topLeading)
-        .frame(minHeight: 190, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .frame(width: 210, alignment: .topLeading)
+        .frame(minHeight: 200, alignment: .topLeading)
+        .background(Color.green.opacity(0.11), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.green.opacity(0.18), lineWidth: 1)
+        }
+    }
+
+    private var syncBadge: String {
+        model.stats.focusRatio >= 0.7 ? "Combo!" : "Building"
     }
 }
 
 private struct MetricTile: View {
     let title: String
     let value: String
+    let subtitle: String
     let icon: String
     let tint: Color
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(tint)
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.15))
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(tint)
+            }
+            .frame(width: 42, height: 42)
+
             Text(value)
-                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .font(.system(size: 32, weight: .heavy, design: .rounded))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(18)
-        .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .frame(maxWidth: .infinity, minHeight: 200, alignment: .topLeading)
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(tint.opacity(0.16), lineWidth: 1)
+        }
     }
 }
 
@@ -194,16 +311,22 @@ private struct TimelinePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Recent Activity")
-                .font(.title3.bold())
+            HStack {
+                Text("Adventure Log")
+                    .font(.title3.bold())
+                Spacer()
+                Text("last 10 scouts")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
 
             if model.recentSamples.isEmpty {
                 ContentUnavailableView(
-                    "No activity yet",
-                    systemImage: "waveform.path.ecg",
-                    description: Text("Resume tracking or run a manual sample.")
+                    "No discoveries yet",
+                    systemImage: "map",
+                    description: Text("Begin the quest or run Scout Now to start filling the log.")
                 )
-                .frame(minHeight: 240)
+                .frame(minHeight: 260)
             } else {
                 ForEach(Array(model.recentSamples.prefix(10))) { sample in
                     ActivityObservationRow(sample: sample)
@@ -212,7 +335,11 @@ private struct TimelinePanel: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+        }
     }
 }
 
@@ -221,11 +348,15 @@ private struct ActivityObservationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: sample.focusState.symbolName)
-                .foregroundStyle(sample.focusState.tint)
-                .frame(width: 20)
+            ZStack {
+                Circle()
+                    .fill(sample.focusState.tint.opacity(0.14))
+                Image(systemName: sample.focusState.symbolName)
+                    .foregroundStyle(sample.focusState.tint)
+            }
+            .frame(width: 42, height: 42)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(activityTitle)
                     .font(.headline)
                     .lineLimit(1)
@@ -237,16 +368,29 @@ private struct ActivityObservationRow: View {
 
             Spacer()
             if sample.nudgeShown {
-                Image(systemName: "bell.fill")
+                Text("Nudge")
+                    .font(.caption.bold())
                     .foregroundStyle(.orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(.orange.opacity(0.12), in: Capsule())
             }
         }
-        .padding(10)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .padding(12)
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private var activityTitle: String {
         DashboardCopy.activitySummary(for: sample)
+    }
+
+    private var rowBackground: Color {
+        switch sample.focusState {
+        case .onGoal: return Color.green.opacity(0.10)
+        case .maybe: return Color.yellow.opacity(0.12)
+        case .offGoal: return Color.orange.opacity(0.12)
+        case .unknown: return Color.gray.opacity(0.10)
+        }
     }
 }
 
@@ -255,26 +399,35 @@ private struct MissionInsightPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Mission Insight")
-                .font(.title3.bold())
+            HStack {
+                Text("Quest Board")
+                    .font(.title3.bold())
+                Spacer()
+                Text("🎮")
+                    .font(.title2)
+            }
 
             if let goal = model.selectedGoal {
                 MissionIntentCard(goal: goal)
                 FocusWindowCard(goal: goal)
                 DriftStatusCard(samples: model.recentSamples)
-                NextStepCard(goal: goal, samples: model.recentSamples)
+                QuestCard(goal: goal, samples: model.recentSamples)
             } else {
                 ContentUnavailableView(
-                    "No mission selected",
+                    "No quest selected",
                     systemImage: "scope",
                     description: Text("Choose or create a mission to start tracking activity.")
                 )
-                .frame(minHeight: 240)
+                .frame(minHeight: 260)
             }
         }
         .padding(18)
-        .frame(width: 360, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+        .frame(width: 380, alignment: .topLeading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(.white.opacity(0.18), lineWidth: 1)
+        }
     }
 }
 
@@ -282,9 +435,7 @@ private struct MissionIntentCard: View {
     let goal: Goal
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Current mission", systemImage: "scope")
-                .font(.headline)
+        PlayfulInfoCard(icon: "scope", title: "Main Quest", tint: .purple) {
             Text(goal.description)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -297,9 +448,7 @@ private struct FocusWindowCard: View {
     let goal: Goal
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Focus window", systemImage: "calendar.badge.clock")
-                .font(.headline)
+        PlayfulInfoCard(icon: "calendar.badge.clock", title: "Quest Hours", tint: .blue) {
             Text(DashboardCopy.scheduleSummary(for: goal.schedule))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -311,13 +460,14 @@ private struct DriftStatusCard: View {
     let samples: [ActivitySample]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Recent alignment", systemImage: statusIcon)
-                .font(.headline)
-                .foregroundStyle(statusTint)
-            Text(statusText)
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        PlayfulInfoCard(icon: statusIcon, title: "Compass", tint: statusTint) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(statusText)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                ProgressView(value: alignmentScore)
+                    .tint(statusTint)
+            }
         }
     }
 
@@ -334,8 +484,13 @@ private struct DriftStatusCard: View {
         recentSamples.filter { $0.focusState == .onGoal }.count
     }
 
+    private var alignmentScore: Double {
+        guard !recentSamples.isEmpty else { return 0 }
+        return Double(alignedCount) / Double(recentSamples.count)
+    }
+
     private var statusIcon: String {
-        if recentSamples.isEmpty { return "waveform.path.ecg" }
+        if recentSamples.isEmpty { return "map" }
         if offGoalCount >= 3 { return "exclamationmark.triangle.fill" }
         if alignedCount >= max(1, recentSamples.count / 2) { return "checkmark.seal.fill" }
         return "gauge.medium"
@@ -344,46 +499,90 @@ private struct DriftStatusCard: View {
     private var statusTint: Color {
         if offGoalCount >= 3 { return .orange }
         if alignedCount >= max(1, recentSamples.count / 2) { return .green }
-        return .secondary
+        return .purple
     }
 
     private var statusText: String {
         guard !recentSamples.isEmpty else {
-            return "No recent samples yet. Watch My Back will build a picture over the next few check-ins."
+            return "No scouts yet. The compass wakes up after a few check-ins."
         }
         if offGoalCount >= 3 {
-            return "A few recent check-ins look off mission. If this continues, a gentle nudge should bring you back."
+            return "Your compass is wobbling. A comeback quest may be needed soon."
         }
         if alignedCount >= max(1, recentSamples.count / 2) {
-            return "Recent activity mostly looks aligned with the mission."
+            return "Nice! Your recent activity is mostly on quest."
         }
-        return "Still gathering enough context to judge the recent work window."
+        return "Gathering clues before judging this work window."
     }
 }
 
-private struct NextStepCard: View {
+private struct QuestCard: View {
     let goal: Goal
     let samples: [ActivitySample]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Suggested next step", systemImage: "arrow.forward.circle")
-                .font(.headline)
-            Text(nextStep)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        PlayfulInfoCard(icon: "star.fill", title: "Mini Quest", tint: .yellow) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(nextStep)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { index in
+                        Image(systemName: index < filledStars ? "star.fill" : "star")
+                            .foregroundStyle(.yellow)
+                    }
+                    Text("streak sparks")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+    }
+
+    private var filledStars: Int {
+        min(3, samples.prefix(3).filter { $0.focusState == .onGoal }.count)
     }
 
     private var nextStep: String {
         if samples.first?.focusState == .offGoal {
-            return "Return to one concrete step for \(goal.title), then sample again after a few minutes."
+            return "Comeback challenge: return to one concrete step for \(goal.title), then Scout Now."
         }
         if samples.first?.focusState == .unknown {
-            return "Finish model and permission setup so activity can be interpreted locally."
+            return "Setup quest: finish model and permission setup so the scout can read the board."
         }
-        return "Keep working in short focused blocks. Watch My Back will only nudge after sustained drift."
+        return "Keep the combo alive: one focused block, one tiny win, then let the scout check in."
+    }
+}
+
+private struct PlayfulInfoCard<Content: View>: View {
+    let icon: String
+    let title: String
+    let tint: Color
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(tint.opacity(0.16))
+                    Image(systemName: icon)
+                        .foregroundStyle(tint)
+                }
+                .frame(width: 34, height: 34)
+                Text(title)
+                    .font(.headline)
+            }
+            content
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(tint.opacity(0.12), lineWidth: 1)
+        }
     }
 }
 
@@ -391,23 +590,23 @@ private enum DashboardCopy {
     static func activitySummary(for sample: ActivitySample) -> String {
         switch sample.activityCategory {
         case "built_in_model_not_ready":
-            return "Model is not ready yet"
+            return "Scout is still gearing up"
         case "screen_recording_permission_missing":
-            return "Screen Recording permission is missing"
+            return "Scout needs screen access"
         case "classifier_unavailable", "unknown":
-            return "Could not interpret this check-in"
+            return "Scout could not read this moment"
         case "unchanged_screen":
-            return "Screen looked unchanged"
+            return "Same scene, combo holding"
         case "cloud_blocked":
-            return "Cloud classification is blocked until opt-in"
+            return "Cloud scout is locked until opt-in"
         default:
             switch sample.focusState {
             case .onGoal:
-                return humanize(sample.activityCategory, fallback: "Activity looks aligned")
+                return "Quest progress: \(humanize(sample.activityCategory, fallback: "aligned work"))"
             case .maybe:
-                return humanize(sample.activityCategory, fallback: "Activity may be related")
+                return "Possible side quest: \(humanize(sample.activityCategory, fallback: "related work"))"
             case .offGoal:
-                return humanize(sample.activityCategory, fallback: "Activity may be off mission")
+                return "Drift spotted: \(humanize(sample.activityCategory, fallback: "off-mission activity"))"
             case .unknown:
                 return humanize(sample.activityCategory, fallback: "Activity could not be interpreted")
             }
