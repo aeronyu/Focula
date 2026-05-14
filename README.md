@@ -14,14 +14,21 @@ Watch My Back is a local-first macOS focus coach. It lets you define a few goals
 
 Default provider: `builtInGemma`.
 
-The app manages a private runtime under Application Support and downloads the default Gemma 4 E2B vision model after the user clicks Install. Model weights are not committed to this repo.
+The app manages a private runtime under Application Support and downloads the selected Gemma 4 E2B MLX vision model after the user clicks Install. Model weights are not committed to this repo. The Settings window and menu bar both include a built-in model picker plus an Open Models Folder action.
 
-Default model:
+Built-in choices:
 
-- Repository: `google/gemma-4-E2B-it`
+- `mlx-community/gemma-4-e2b-it-4bit` - recommended default, about 3.6 GB.
+- `mlx-community/gemma-4-e2b-it-8bit` - higher precision, about 5.9 GB.
+- `mlx-community/gemma-4-e2b-it-bf16` - largest local option, about 10.3 GB.
+
+Storage:
+
 - Runtime path: `~/Library/Application Support/Watch My Back/BuiltInRuntime`
 - Model path: `~/Library/Application Support/Watch My Back/BuiltInRuntime/Models`
 - Sidecar: app-owned loopback service at `127.0.0.1:8765` while the app is running
+
+Older settings that pointed at `google/gemma-4-E2B-it` are migrated to the recommended MLX 4-bit built-in model.
 
 The built-in sidecar is isolated behind `VisionClassifying`, so a native Swift MLX runtime can replace it later without changing UI or storage contracts.
 

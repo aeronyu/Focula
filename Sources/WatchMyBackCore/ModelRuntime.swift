@@ -105,12 +105,27 @@ public enum ModelSupportPaths {
         return folder
     }
 
-    public static func builtInModelRoot(fileManager: FileManager = .default) throws -> URL {
+    public static func builtInModelsRoot(fileManager: FileManager = .default) throws -> URL {
         let folder = try builtInRuntimeRoot(fileManager: fileManager)
             .appendingPathComponent("Models", isDirectory: true)
-            .appendingPathComponent(BuiltInModelCatalog.gemma4E2B.repository.replacingOccurrences(of: "/", with: "__"), isDirectory: true)
+        try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    public static func builtInModelRoot(
+        for descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel,
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        let folder = try builtInModelsRoot(fileManager: fileManager)
+            .appendingPathComponent(storageFolderName(for: descriptor.repository), isDirectory: true)
         try fileManager.createDirectory(at: folder.deletingLastPathComponent(), withIntermediateDirectories: true)
         return folder
+    }
+
+    public static func storageFolderName(for repository: String) -> String {
+        repository
+            .replacingOccurrences(of: "/", with: "__")
+            .replacingOccurrences(of: ":", with: "_")
     }
 
     public static func pythonEnvironmentRoot(fileManager: FileManager = .default) throws -> URL {

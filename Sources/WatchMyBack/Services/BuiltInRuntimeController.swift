@@ -4,26 +4,30 @@ import WatchMyBackCore
 @MainActor
 final class BuiltInRuntimeController {
     private var sidecarProcess: Process?
+    private var runningModelID: String?
     private let port = 8765
 
     var endpoint: URL {
         URL(string: "http://127.0.0.1:\(port)/classify")!
     }
 
-    func currentStatus() -> ModelRuntimeStatus {
+    func currentStatus(for descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) -> ModelRuntimeStatus {
         do {
-            let modelRoot = try ModelSupportPaths.builtInModelRoot()
+            let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
             let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
             let modelReady = FileManager.default.fileExists(atPath: modelRoot.appendingPathComponent("config.json").path)
             let pythonReady = FileManager.default.fileExists(atPath: pythonRoot.appendingPathComponent("bin/python").path)
             let storagePath = modelRoot.path
+            let selectedSidecarRunning = sidecarProcess?.isRunning == true && runningModelID == descriptor.id
 
             if modelReady && pythonReady {
                 return ModelRuntimeStatus(
                     provider: .builtInGemma,
-                    modelID: BuiltInModelCatalog.gemma4E2B.id,
+                    modelID: descriptor.id,
                     installState: .ready,
-                    statusMessage: sidecarProcess?.isRunning == true ? "Built-in Gemma sidecar running." : "Built-in Gemma installed.",
+                    statusMessage: selectedSidecarRunning
+                        ? "\(descriptor.displayName) sidecar running."
+                        : "\(descriptor.displayName) installed.",
                     storagePath: storagePath,
                     isVisionCapable: true,
                     isUsable: true
@@ -32,17 +36,17 @@ final class BuiltInRuntimeController {
 
             return ModelRuntimeStatus(
                 provider: .builtInGemma,
-                modelID: BuiltInModelCatalog.gemma4E2B.id,
+                modelID: descriptor.id,
                 installState: .missing,
-                statusMessage: "Install built-in Gemma before local classification.",
+                statusMessage: "Install \(descriptor.displayName) before local classification.",
                 storagePath: storagePath,
                 isVisionCapable: true,
-                isUsable: true
+                isUsable: false
             )
         } catch {
             return ModelRuntimeStatus(
                 provider: .builtInGemma,
-                modelID: BuiltInModelCatalog.gemma4E2B.id,
+                modelID: descriptor.id,
                 installState: .failed,
                 statusMessage: "Could not inspect built-in runtime: \(error.localizedDescription)",
                 storagePath: nil,
@@ -53,9 +57,14 @@ final class BuiltInRuntimeController {
     }
 
     func installDefaultModel() async throws -> ModelRuntimeStatus {
+        try await installModel(BuiltInModelCatalog.defaultModel)
+    }
+
+    func installModel(_ descriptor: BuiltInModelDescriptor) async throws -> ModelRuntimeStatus {
+        stop()
         let runtimeRoot = try ModelSupportPaths.builtInRuntimeRoot()
         let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
-        let modelRoot = try ModelSupportPaths.builtInModelRoot()
+        let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
         let python = pythonRoot.appendingPathComponent("bin/python")
 
         try FileManager.default.createDirectory(at: runtimeRoot, withIntermediateDirectories: true)
@@ -90,36 +99,43 @@ final class BuiltInRuntimeController {
                 """
             ],
             environment: [
-                "WMB_MODEL_REPO": BuiltInModelCatalog.gemma4E2B.repository,
+                "WMB_MODEL_REPO": descriptor.repository,
                 "WMB_MODEL_DIR": modelRoot.path
             ]
         )
 
-        return currentStatus()
+        return currentStatus(for: descriptor)
     }
 
     func deleteDefaultModel() throws -> ModelRuntimeStatus {
+        try deleteModel(BuiltInModelCatalog.defaultModel)
+    }
+
+    func deleteModel(_ descriptor: BuiltInModelDescriptor) throws -> ModelRuntimeStatus {
         stop()
-        let modelRoot = try ModelSupportPaths.builtInModelRoot()
+        let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
         if FileManager.default.fileExists(atPath: modelRoot.path) {
             try FileManager.default.removeItem(at: modelRoot)
         }
-        return currentStatus()
+        return currentStatus(for: descriptor)
     }
 
-    func ensureRunning() async throws {
-        if sidecarProcess?.isRunning == true {
+    func ensureRunning(model descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) async throws {
+        if sidecarProcess?.isRunning == true && runningModelID == descriptor.id {
             return
         }
+        if sidecarProcess?.isRunning == true {
+            stop()
+        }
 
-        let status = currentStatus()
+        let status = currentStatus(for: descriptor)
         guard status.installState == .ready else {
             throw BuiltInRuntimeError.notInstalled
         }
 
         let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
         let python = pythonRoot.appendingPathComponent("bin/python")
-        let modelRoot = try ModelSupportPaths.builtInModelRoot()
+        let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
         guard let script = Bundle.module.url(
             forResource: "builtin_gemma_sidecar",
             withExtension: "py",
@@ -138,10 +154,12 @@ final class BuiltInRuntimeController {
         process.environment = ProcessInfo.processInfo.environment.merging(["PYTHONUNBUFFERED": "1"]) { _, new in new }
         try process.run()
         sidecarProcess = process
+        runningModelID = descriptor.id
 
         for _ in 0..<10 {
             if !process.isRunning {
                 sidecarProcess = nil
+                runningModelID = nil
                 throw BuiltInRuntimeError.processFailed("sidecar exited before it became healthy")
             }
             if await healthCheck() {
@@ -158,6 +176,7 @@ final class BuiltInRuntimeController {
             sidecarProcess?.terminate()
         }
         sidecarProcess = nil
+        runningModelID = nil
     }
 
     private func runProcess(

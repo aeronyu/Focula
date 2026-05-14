@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AppKit
 import WatchMyBackCore
 
 @MainActor
@@ -47,7 +48,8 @@ final class AppModel: ObservableObject {
             let store = try DatabaseStore(path: url.path)
             self.store = store
             settings = try store.fetchSettings()
-            settings.builtInModelStatus = builtInRuntime.currentStatus()
+            normalizeBuiltInModelSelection()
+            settings.builtInModelStatus = builtInRuntime.currentStatus(for: selectedBuiltInModelDescriptor)
             let activeGoal = try store.seedDefaultGoalIfNeeded()
             selectedGoalID = activeGoal.id
             reloadFromStore()
@@ -93,9 +95,16 @@ final class AppModel: ObservableObject {
         runtimeStatuses.first(where: { $0.provider == settings.modelSelection.provider })
     }
 
+    var selectedBuiltInModelDescriptor: BuiltInModelDescriptor {
+        if settings.modelSelection.provider == .builtInGemma {
+            return BuiltInModelCatalog.descriptorOrDefault(for: settings.modelSelection.modelID)
+        }
+        return BuiltInModelCatalog.descriptorOrDefault(for: settings.builtInModelStatus.modelID)
+    }
+
     var selectedModelLabel: String {
         settings.modelSelection.provider == .builtInGemma
-            ? BuiltInModelCatalog.gemma4E2B.displayName
+            ? selectedBuiltInModelDescriptor.displayName
             : settings.modelSelection.displayName
     }
 
@@ -115,6 +124,15 @@ final class AppModel: ObservableObject {
         refreshScreenRecordingPermission()
         if !screenRecordingPermission.isGranted {
             ScreenRecordingPermissionPresenter.shared.present()
+        }
+    }
+
+    func openBuiltInModelsFolder() {
+        do {
+            let url = try ModelSupportPaths.builtInModelsRoot()
+            NSWorkspace.shared.open(url)
+        } catch {
+            lastError = "Could not open model folder: \(error.localizedDescription)"
         }
     }
 
@@ -140,9 +158,13 @@ final class AppModel: ObservableObject {
 
         switch provider {
         case .builtInGemma:
-            settings.modelSelection.modelID = BuiltInModelCatalog.gemma4E2B.id
+            let descriptor = BuiltInModelCatalog.descriptor(for: settings.builtInModelStatus.modelID)
+                ?? BuiltInModelCatalog.descriptor(for: settings.modelSelection.modelID)
+                ?? BuiltInModelCatalog.defaultModel
+            settings.modelSelection.modelID = descriptor.id
             settings.modelSelection.endpoint = nil
-            settings.model = BuiltInModelCatalog.gemma4E2B.id
+            settings.model = descriptor.id
+            settings.builtInModelStatus = builtInRuntime.currentStatus(for: descriptor)
         case .oMLX:
             settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "mlx-community/gemma-4-e2b-it" : settings.modelSelection.modelID
             settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? URL(string: "http://127.0.0.1:8123/v1/chat/completions")!
@@ -162,6 +184,21 @@ final class AppModel: ObservableObject {
         refreshRuntimeStatuses()
     }
 
+    func selectBuiltInModel(id: String) {
+        let descriptor = BuiltInModelCatalog.descriptorOrDefault(for: id)
+        if settings.builtInModelStatus.modelID != descriptor.id {
+            builtInRuntime.stop()
+        }
+        settings.modelSelection.provider = .builtInGemma
+        settings.modelSelection.modelID = descriptor.id
+        settings.modelSelection.endpoint = nil
+        settings.model = descriptor.id
+        settings.builtInModelStatus = builtInRuntime.currentStatus(for: descriptor)
+        statusMessage = settings.builtInModelStatus.statusMessage
+        saveSettings()
+        refreshRuntimeStatuses()
+    }
+
     func updateCloudClassificationAllowed(_ allowed: Bool) {
         settings.modelSelection.cloudClassificationAllowed = allowed
         saveSettings()
@@ -170,13 +207,14 @@ final class AppModel: ObservableObject {
 
     func installBuiltInModel() async {
         guard !isInstallingBuiltInModel else { return }
+        let descriptor = selectedBuiltInModelDescriptor
         isInstallingBuiltInModel = true
         settings.builtInModelStatus = ModelRuntimeStatus(
             provider: .builtInGemma,
-            modelID: BuiltInModelCatalog.gemma4E2B.id,
+            modelID: descriptor.id,
             installState: .downloading,
-            statusMessage: "Installing private Python runtime and downloading Gemma 4 E2B...",
-            storagePath: try? ModelSupportPaths.builtInModelRoot().path,
+            statusMessage: "Installing private Python runtime and downloading \(descriptor.displayName)...",
+            storagePath: try? ModelSupportPaths.builtInModelRoot(for: descriptor).path,
             isVisionCapable: true,
             isUsable: false
         )
@@ -185,15 +223,15 @@ final class AppModel: ObservableObject {
         refreshRuntimeStatuses()
 
         do {
-            settings.builtInModelStatus = try await builtInRuntime.installDefaultModel()
-            statusMessage = "Built-in Gemma ready. Screenshots stay local and are discarded after classification."
+            settings.builtInModelStatus = try await builtInRuntime.installModel(descriptor)
+            statusMessage = "\(descriptor.displayName) ready. Screenshots stay local and are discarded after classification."
         } catch {
             settings.builtInModelStatus = ModelRuntimeStatus(
                 provider: .builtInGemma,
-                modelID: BuiltInModelCatalog.gemma4E2B.id,
+                modelID: descriptor.id,
                 installState: .failed,
                 statusMessage: "Built-in model install failed.",
-                storagePath: try? ModelSupportPaths.builtInModelRoot().path,
+                storagePath: try? ModelSupportPaths.builtInModelRoot(for: descriptor).path,
                 isVisionCapable: true,
                 isUsable: false
             )
@@ -207,8 +245,9 @@ final class AppModel: ObservableObject {
 
     func deleteBuiltInModel() {
         do {
-            settings.builtInModelStatus = try builtInRuntime.deleteDefaultModel()
-            statusMessage = "Built-in model removed. Install again before using built-in Gemma."
+            let descriptor = selectedBuiltInModelDescriptor
+            settings.builtInModelStatus = try builtInRuntime.deleteModel(descriptor)
+            statusMessage = "\(descriptor.displayName) removed. Install it again before using this built-in model."
             saveSettings()
             refreshRuntimeStatuses()
         } catch {
@@ -229,9 +268,10 @@ final class AppModel: ObservableObject {
 
         if settings.modelSelection.provider == .builtInGemma {
             do {
-                try await builtInRuntime.ensureRunning()
-                settings.builtInModelStatus = builtInRuntime.currentStatus()
-                statusMessage = "Built-in Gemma sidecar responded."
+                let descriptor = selectedBuiltInModelDescriptor
+                try await builtInRuntime.ensureRunning(model: descriptor)
+                settings.builtInModelStatus = builtInRuntime.currentStatus(for: descriptor)
+                statusMessage = "\(descriptor.displayName) sidecar responded."
             } catch {
                 lastError = error.localizedDescription
                 statusMessage = "Built-in Gemma is not ready."
@@ -336,11 +376,12 @@ final class AppModel: ObservableObject {
             }
 
             if settings.modelSelection.provider == .builtInGemma {
+                let descriptor = selectedBuiltInModelDescriptor
                 guard settings.builtInModelStatus.installState == .ready else {
                     return BuiltInGemmaClient.notReadyFallback()
                 }
-                try await builtInRuntime.ensureRunning()
-                settings.builtInModelStatus = builtInRuntime.currentStatus()
+                try await builtInRuntime.ensureRunning(model: descriptor)
+                settings.builtInModelStatus = builtInRuntime.currentStatus(for: descriptor)
                 refreshRuntimeStatuses()
             }
 
@@ -394,12 +435,21 @@ final class AppModel: ObservableObject {
 
     private func refreshRuntimeStatuses() {
         if settings.builtInModelStatus.installState != .downloading {
-            settings.builtInModelStatus = builtInRuntime.currentStatus()
+            settings.builtInModelStatus = builtInRuntime.currentStatus(for: selectedBuiltInModelDescriptor)
         }
         runtimeStatuses = runtimeDetector.statuses(
             selected: settings.modelSelection,
             builtInStatus: settings.builtInModelStatus
         )
+    }
+
+    private func normalizeBuiltInModelSelection() {
+        guard settings.modelSelection.provider == .builtInGemma else { return }
+        let descriptor = BuiltInModelCatalog.descriptorOrDefault(for: settings.modelSelection.modelID)
+        settings.modelSelection.modelID = descriptor.id
+        settings.modelSelection.endpoint = nil
+        settings.model = descriptor.id
+        settings.builtInModelStatus.modelID = descriptor.id
     }
 
     private func startTimer() {

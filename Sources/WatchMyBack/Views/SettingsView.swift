@@ -24,12 +24,35 @@ struct SettingsView: View {
             }
 
             Section("Built-in local model") {
-                LabeledContent("Default", value: BuiltInModelCatalog.gemma4E2B.displayName)
-                LabeledContent("Size", value: BuiltInModelCatalog.gemma4E2B.estimatedDownloadSize)
-                LabeledContent("Memory", value: BuiltInModelCatalog.gemma4E2B.expectedMemory)
+                Picker(
+                    "Variant",
+                    selection: Binding(
+                        get: { model.selectedBuiltInModelDescriptor.id },
+                        set: { model.selectBuiltInModel(id: $0) }
+                    )
+                ) {
+                    ForEach(BuiltInModelCatalog.all) { descriptor in
+                        Text(descriptor.isRecommended ? "\(descriptor.displayName) - recommended" : descriptor.displayName)
+                            .tag(descriptor.id)
+                    }
+                }
+
+                LabeledContent("Repository", value: model.selectedBuiltInModelDescriptor.repository)
+                LabeledContent("Precision", value: model.selectedBuiltInModelDescriptor.precision)
+                LabeledContent("Size", value: model.selectedBuiltInModelDescriptor.estimatedDownloadSize)
+                LabeledContent("Memory", value: model.selectedBuiltInModelDescriptor.expectedMemory)
 
                 if let path = model.settings.builtInModelStatus.storagePath {
-                    LabeledContent("Storage", value: path)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Storage")
+                            .font(.subheadline)
+                        Text(path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                    }
                 }
 
                 HStack {
@@ -56,9 +79,15 @@ struct SettingsView: View {
                         Label("Test", systemImage: "checkmark.circle")
                     }
                     .disabled(model.isTestingModel || model.isInstallingBuiltInModel)
+
+                    Button {
+                        model.openBuiltInModelsFolder()
+                    } label: {
+                        Label("Open Folder", systemImage: "folder")
+                    }
                 }
 
-                Text(BuiltInModelCatalog.gemma4E2B.localOnlyNotice)
+                Text(model.selectedBuiltInModelDescriptor.localOnlyNotice)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

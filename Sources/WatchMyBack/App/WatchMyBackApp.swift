@@ -39,6 +39,19 @@ struct WatchMyBackApp: App {
                     model.pauseModelRuntime()
                 }
 
+                Menu("Built-in Gemma Variant") {
+                    ForEach(BuiltInModelCatalog.all) { descriptor in
+                        Button(descriptor.displayName) {
+                            model.selectBuiltInModel(id: descriptor.id)
+                        }
+                        .disabled(descriptor.id == model.selectedBuiltInModelDescriptor.id)
+                    }
+                }
+
+                Button("Open Models Folder") {
+                    model.openBuiltInModelsFolder()
+                }
+
                 Divider()
 
                 ForEach(ModelProvider.allCases) { provider in

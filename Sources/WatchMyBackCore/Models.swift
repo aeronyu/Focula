@@ -190,42 +190,100 @@ public enum ModelProvider: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
-public struct BuiltInModelDescriptor: Codable, Equatable, Sendable {
+public struct BuiltInModelDescriptor: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var displayName: String
     public var repository: String
+    public var precision: String
     public var estimatedDownloadSize: String
     public var expectedMemory: String
     public var localOnlyNotice: String
+    public var isRecommended: Bool
 
     public init(
         id: String,
         displayName: String,
         repository: String,
+        precision: String,
         estimatedDownloadSize: String,
         expectedMemory: String,
-        localOnlyNotice: String
+        localOnlyNotice: String,
+        isRecommended: Bool = false
     ) {
         self.id = id
         self.displayName = displayName
         self.repository = repository
+        self.precision = precision
         self.estimatedDownloadSize = estimatedDownloadSize
         self.expectedMemory = expectedMemory
         self.localOnlyNotice = localOnlyNotice
+        self.isRecommended = isRecommended
     }
 }
 
 public enum BuiltInModelCatalog {
-    public static let gemma4E2B = BuiltInModelDescriptor(
-        id: "google/gemma-4-E2B-it",
-        displayName: "Gemma 4 E2B Vision",
-        repository: "google/gemma-4-E2B-it",
-        estimatedDownloadSize: "about 10 GB",
-        expectedMemory: "16 GB unified memory recommended",
-        localOnlyNotice: "Classifies screenshots locally; raw images are discarded after each request."
+    public static let gemma4E2B4Bit = BuiltInModelDescriptor(
+        id: "mlx-community/gemma-4-e2b-it-4bit",
+        displayName: "Gemma 4 E2B Vision 4-bit",
+        repository: "mlx-community/gemma-4-e2b-it-4bit",
+        precision: "4-bit MLX",
+        estimatedDownloadSize: "about 3.6 GB",
+        expectedMemory: "8 GB unified memory recommended",
+        localOnlyNotice: "Smallest built-in option. Classifies screenshots locally; raw images are discarded after each request.",
+        isRecommended: true
     )
 
-    public static let all: [BuiltInModelDescriptor] = [gemma4E2B]
+    public static let gemma4E2B8Bit = BuiltInModelDescriptor(
+        id: "mlx-community/gemma-4-e2b-it-8bit",
+        displayName: "Gemma 4 E2B Vision 8-bit",
+        repository: "mlx-community/gemma-4-e2b-it-8bit",
+        precision: "8-bit MLX",
+        estimatedDownloadSize: "about 5.9 GB",
+        expectedMemory: "12 GB unified memory recommended",
+        localOnlyNotice: "Higher precision than 4-bit while staying smaller than BF16. Screenshots stay local and are discarded."
+    )
+
+    public static let gemma4E2BBF16 = BuiltInModelDescriptor(
+        id: "mlx-community/gemma-4-e2b-it-bf16",
+        displayName: "Gemma 4 E2B Vision BF16",
+        repository: "mlx-community/gemma-4-e2b-it-bf16",
+        precision: "BF16 MLX",
+        estimatedDownloadSize: "about 10.3 GB",
+        expectedMemory: "16 GB unified memory recommended",
+        localOnlyNotice: "Largest built-in option. Use when quality matters more than storage and memory."
+    )
+
+    public static let all: [BuiltInModelDescriptor] = [
+        gemma4E2B4Bit,
+        gemma4E2B8Bit,
+        gemma4E2BBF16
+    ]
+
+    public static let defaultModel = gemma4E2B4Bit
+
+    public static let legacyDefaultRepositories: Set<String> = [
+        "google/gemma-4-E2B-it",
+        "google/gemma-4-e2b-it"
+    ]
+
+    // Backward-compatible alias for older settings and tests.
+    public static let gemma4E2B = gemma4E2B4Bit
+
+    public static func descriptor(for id: String) -> BuiltInModelDescriptor? {
+        if let descriptor = all.first(where: { $0.id == id || $0.repository == id }) {
+            return descriptor
+        }
+
+        if legacyDefaultRepositories.contains(id) {
+            return defaultModel
+        }
+
+        return nil
+    }
+
+    public static func descriptorOrDefault(for id: String) -> BuiltInModelDescriptor {
+        descriptor(for: id) ?? defaultModel
+    }
 }
 
 public struct ModelSelection: Codable, Equatable, Sendable {
@@ -236,7 +294,7 @@ public struct ModelSelection: Codable, Equatable, Sendable {
 
     public init(
         provider: ModelProvider = .builtInGemma,
-        modelID: String = BuiltInModelCatalog.gemma4E2B.id,
+        modelID: String = BuiltInModelCatalog.defaultModel.id,
         endpoint: URL? = nil,
         cloudClassificationAllowed: Bool = false
     ) {
@@ -249,7 +307,7 @@ public struct ModelSelection: Codable, Equatable, Sendable {
     public static func builtInGemma() -> ModelSelection {
         ModelSelection(
             provider: .builtInGemma,
-            modelID: BuiltInModelCatalog.gemma4E2B.id,
+            modelID: BuiltInModelCatalog.defaultModel.id,
             endpoint: nil,
             cloudClassificationAllowed: false
         )
@@ -317,12 +375,12 @@ public struct ModelRuntimeStatus: Codable, Equatable, Sendable {
     public static func builtInDefault(storagePath: String? = nil) -> ModelRuntimeStatus {
         ModelRuntimeStatus(
             provider: .builtInGemma,
-            modelID: BuiltInModelCatalog.gemma4E2B.id,
+            modelID: BuiltInModelCatalog.defaultModel.id,
             installState: .missing,
             statusMessage: "Built-in model not installed.",
             storagePath: storagePath,
             isVisionCapable: true,
-            isUsable: true
+            isUsable: false
         )
     }
 }
@@ -357,7 +415,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     public init(
         endpoint: URL = URL(string: "http://127.0.0.1:1234/v1/chat/completions")!,
-        model: String = BuiltInModelCatalog.gemma4E2B.id,
+        model: String = BuiltInModelCatalog.defaultModel.id,
         modelSelection: ModelSelection = .builtInGemma(),
         builtInModelStatus: ModelRuntimeStatus = .builtInDefault(),
         modelTelemetry: ModelTelemetry = ModelTelemetry(),
@@ -387,9 +445,18 @@ public struct AppSettings: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let defaultEndpoint = URL(string: "http://127.0.0.1:1234/v1/chat/completions")!
         endpoint = try container.decodeIfPresent(URL.self, forKey: .endpoint) ?? defaultEndpoint
-        model = try container.decodeIfPresent(String.self, forKey: .model) ?? BuiltInModelCatalog.gemma4E2B.id
-        modelSelection = try container.decodeIfPresent(ModelSelection.self, forKey: .modelSelection) ?? .builtInGemma()
-        builtInModelStatus = try container.decodeIfPresent(ModelRuntimeStatus.self, forKey: .builtInModelStatus) ?? .builtInDefault()
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? BuiltInModelCatalog.defaultModel.id
+        var decodedSelection = try container.decodeIfPresent(ModelSelection.self, forKey: .modelSelection) ?? .builtInGemma()
+        var decodedStatus = try container.decodeIfPresent(ModelRuntimeStatus.self, forKey: .builtInModelStatus) ?? .builtInDefault()
+        if decodedSelection.provider == .builtInGemma {
+            let descriptor = BuiltInModelCatalog.descriptorOrDefault(for: decodedSelection.modelID)
+            decodedSelection.modelID = descriptor.id
+            decodedSelection.endpoint = nil
+            model = descriptor.id
+            decodedStatus.modelID = descriptor.id
+        }
+        modelSelection = decodedSelection
+        builtInModelStatus = decodedStatus
         modelTelemetry = try container.decodeIfPresent(ModelTelemetry.self, forKey: .modelTelemetry) ?? ModelTelemetry()
         sampleIntervalSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .sampleIntervalSeconds) ?? 60
         paused = try container.decodeIfPresent(Bool.self, forKey: .paused) ?? true

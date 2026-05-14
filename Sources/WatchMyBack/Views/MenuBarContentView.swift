@@ -42,6 +42,21 @@ struct MenuBarContentView: View {
                 Label("Switch Model", systemImage: "arrow.triangle.2.circlepath")
             }
 
+            Menu {
+                ForEach(BuiltInModelCatalog.all) { descriptor in
+                    Button {
+                        model.selectBuiltInModel(id: descriptor.id)
+                    } label: {
+                        Label(
+                            descriptor.displayName,
+                            systemImage: descriptor.id == model.selectedBuiltInModelDescriptor.id ? "checkmark" : "cpu"
+                        )
+                    }
+                }
+            } label: {
+                Label("Gemma Variant", systemImage: "slider.horizontal.3")
+            }
+
             Button {
                 Task { await model.testSelectedModel() }
             } label: {
@@ -61,6 +76,12 @@ struct MenuBarContentView: View {
                     model.pauseModelRuntime()
                 } label: {
                     Label("Pause Model", systemImage: "stop.circle")
+                }
+
+                Button {
+                    model.openBuiltInModelsFolder()
+                } label: {
+                    Label("Open Models Folder", systemImage: "folder")
                 }
             }
 

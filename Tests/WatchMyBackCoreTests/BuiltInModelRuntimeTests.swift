@@ -31,7 +31,7 @@ final class BuiltInModelRuntimeTests: XCTestCase {
         var settings = AppSettings()
         settings.builtInModelStatus = ModelRuntimeStatus(
             provider: .builtInGemma,
-            modelID: BuiltInModelCatalog.gemma4E2B.id,
+            modelID: BuiltInModelCatalog.defaultModel.id,
             installState: .ready,
             statusMessage: "Ready",
             storagePath: "/tmp/model",
@@ -43,5 +43,16 @@ final class BuiltInModelRuntimeTests: XCTestCase {
 
         XCTAssertEqual(try store.fetchSettings().builtInModelStatus.installState, .ready)
         XCTAssertFalse(try store.schemaContainsScreenshotStorage())
+    }
+
+    func testBuiltInModelStorageFolderUsesRepositoryName() {
+        XCTAssertEqual(
+            ModelSupportPaths.storageFolderName(for: BuiltInModelCatalog.gemma4E2B4Bit.repository),
+            "mlx-community__gemma-4-e2b-it-4bit"
+        )
+        XCTAssertEqual(
+            ModelSupportPaths.storageFolderName(for: BuiltInModelCatalog.gemma4E2B8Bit.repository),
+            "mlx-community__gemma-4-e2b-it-8bit"
+        )
     }
 }
