@@ -33,6 +33,7 @@ final class AppModel: ObservableObject {
     private let runtimeDetector = ModelRuntimeDetector()
     private let deduplicator = FrameDeduplicator()
     private let nudgeCoordinator = NudgeCoordinator()
+    private let activityWindowAnalyzer = ActivityWindowAnalyzer()
     private var timer: Timer?
     private var permissionRefreshTimer: Timer?
 
@@ -328,19 +329,8 @@ final class AppModel: ObservableObject {
 
         let app = appProvider.currentApp()
         let result = await classifyCurrentScreen(goal: goal, app: app)
-        let shouldNudge = nudgeCoordinator.shouldNudge(
-            focusState: result.focusState,
-            schedule: goal.schedule,
-            paused: settings.paused,
-            now: now
-        )
 
-        if shouldNudge {
-            NotificationNudgePresenter.shared.show(goal: goal, appName: app.appName)
-            nudgeCoordinator.recordNudge(at: now)
-        }
-
-        let sample = ActivitySample(
+        var sample = ActivitySample(
             timestamp: now,
             appName: app.appName,
             bundleIdentifier: app.bundleIdentifier,
@@ -349,13 +339,27 @@ final class AppModel: ObservableObject {
             activityCategory: result.activityCategory,
             confidence: result.confidence,
             durationSeconds: settings.sampleIntervalSeconds,
-            nudgeShown: shouldNudge
+            nudgeShown: false
         )
+
+        let windowSummary = activityWindowAnalyzer.summarize(samples: [sample] + recentSamples, now: now)
+        let shouldNudge = windowSummary.isSustainedDrift && nudgeCoordinator.shouldNudge(
+            focusState: .offGoal,
+            schedule: goal.schedule,
+            paused: settings.paused,
+            now: now
+        )
+        sample.nudgeShown = shouldNudge
+
+        if shouldNudge {
+            NotificationNudgePresenter.shared.show(goal: goal, appName: app.appName)
+            nudgeCoordinator.recordNudge(at: now)
+        }
 
         do {
             try store?.saveActivitySample(sample)
             lastFocusState = result.focusState
-            statusMessage = statusText(for: sample, goal: goal)
+            statusMessage = statusText(for: sample, goal: goal, windowSummary: windowSummary)
             reloadFromStore()
         } catch {
             lastError = "Could not save sample: \(error.localizedDescription)"
@@ -475,18 +479,26 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func statusText(for sample: ActivitySample, goal: Goal) -> String {
-        switch sample.focusState {
-        case .onGoal:
-            "On mission for \(goal.title) in \(sample.appName)."
-        case .maybe:
-            "Maybe related: \(sample.activityCategory) in \(sample.appName)."
-        case .offGoal:
-            sample.nudgeShown
-                ? "Nudge sent: \(sample.appName) looked off-goal."
-                : "Off-goal detected, cooldown active."
+    private func statusText(
+        for sample: ActivitySample,
+        goal: Goal,
+        windowSummary: ActivityWindowSummary
+    ) -> String {
+        if sample.nudgeShown {
+            return "Comeback nudge sent after sustained drift from \(goal.title)."
+        }
+
+        switch windowSummary.state {
+        case .drifting:
+            return "Drift is building. Watch My Back will nudge after cooldown and schedule checks."
+        case .onTrack:
+            return "On mission for \(goal.title)."
+        case .mixed:
+            return "Gathering recent activity context for \(goal.title)."
         case .unknown:
-            "Unknown: model runtime or Screen Recording permission may need setup."
+            return "Unknown: model runtime or Screen Recording permission may need setup."
+        case .noSamples:
+            return "First check-in recorded for \(goal.title)."
         }
     }
 }
