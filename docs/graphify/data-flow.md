@@ -16,12 +16,16 @@ Timer or manual Sample Now
   -> ModelRouter.classifier(for:builtInClient:)
   -> VisionClassifying.classify(...)
   -> VisionClassifierResult
-  -> NudgeCoordinator.shouldNudge(...)
   -> ActivitySample
+  -> ActivityWindowAnalyzer.summarize(samples:now:)
+  -> ActivityWindowSummary.isSustainedDrift
+  -> NudgeCoordinator.shouldNudge(...)
   -> DatabaseStore.saveActivitySample(...)
   -> reloadFromStore()
   -> Dashboard/MenuBar UI
 ```
+
+Nudges should be based on sustained drift from `ActivityWindowAnalyzer`, not a single off-goal sample.
 
 ## Dashboard presentation flow
 
@@ -29,12 +33,13 @@ Timer or manual Sample Now
 ActivitySample.activityCategory / focusState
   -> DashboardCopy.activitySummary(for:)
   -> ActivityObservationRow
-  -> Recent Activity list
+  -> Adventure Log
 
 Recent ActivitySample window
+  -> ActivityWindowAnalyzer.summarize(samples:)
   -> DriftStatusCard
-  -> Recent alignment message
-  -> NextStepCard
+  -> Compass message
+  -> QuestCard next step
 ```
 
 The dashboard should present human-readable mission insight and should not expose raw snake_case classifier categories as primary UI.
