@@ -3,6 +3,8 @@ import WatchMyBackCore
 
 struct SettingsView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showInstallConfirmation = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         Form {
@@ -57,7 +59,7 @@ struct SettingsView: View {
 
                 HStack {
                     Button {
-                        Task { await model.installBuiltInModel() }
+                        showInstallConfirmation = true
                     } label: {
                         Label(
                             model.settings.builtInModelStatus.installState == .ready ? "Reinstall" : "Install",
@@ -66,12 +68,15 @@ struct SettingsView: View {
                     }
                     .disabled(model.isInstallingBuiltInModel)
 
-                    Button {
-                        model.deleteBuiltInModel()
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
-                    .disabled(model.settings.builtInModelStatus.installState == .missing || model.isInstallingBuiltInModel)
+                    // Keep Delete available even when the status is "missing" because a failed or partial
+                    // download can leave a model directory without config.json. deleteBuiltInModel() is safe
+                    // when the folder is absent and cleans up partial downloads when it exists.
+                    .disabled(model.isInstallingBuiltInModel)
 
                     Button {
                         Task { await model.testSelectedModel() }
@@ -168,5 +173,38 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .padding()
+        .alert(installConfirmationTitle, isPresented: $showInstallConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button(model.settings.builtInModelStatus.installState == .ready ? "Reinstall" : "Download") {
+                Task { await model.installBuiltInModel() }
+            }
+        } message: {
+            Text(installConfirmationMessage)
+        }
+        .alert("Delete built-in model?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                model.deleteBuiltInModel()
+            }
+        } message: {
+            Text(deleteConfirmationMessage)
+        }
+    }
+
+    private var installConfirmationTitle: String {
+        model.settings.builtInModelStatus.installState == .ready
+            ? "Reinstall built-in model?"
+            : "Download built-in model?"
+    }
+
+    private var installConfirmationMessage: String {
+        let descriptor = model.selectedBuiltInModelDescriptor
+        return "Watch My Back will download \(descriptor.displayName) from \(descriptor.repository). Estimated size: \(descriptor.estimatedDownloadSize). Classification stays local and raw screenshots are discarded after each request."
+    }
+
+    private var deleteConfirmationMessage: String {
+        let descriptor = model.selectedBuiltInModelDescriptor
+        let path = model.settings.builtInModelStatus.storagePath ?? "the built-in model storage folder"
+        return "This removes \(descriptor.displayName) from \(path). You can download it again later."
     }
 }
