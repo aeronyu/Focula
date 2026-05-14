@@ -458,6 +458,7 @@ private struct FocusWindowCard: View {
 
 private struct DriftStatusCard: View {
     let samples: [ActivitySample]
+    private let analyzer = ActivityWindowAnalyzer()
 
     var body: some View {
         PlayfulInfoCard(icon: statusIcon, title: "Compass", tint: statusTint) {
@@ -465,60 +466,54 @@ private struct DriftStatusCard: View {
                 Text(statusText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                ProgressView(value: alignmentScore)
+                ProgressView(value: summary.alignmentRatio)
                     .tint(statusTint)
             }
         }
     }
 
-    private var recentSamples: [ActivitySample] {
-        let cutoff = Date().addingTimeInterval(-20 * 60)
-        return samples.filter { $0.timestamp >= cutoff }
-    }
-
-    private var offGoalCount: Int {
-        recentSamples.filter { $0.focusState == .offGoal }.count
-    }
-
-    private var alignedCount: Int {
-        recentSamples.filter { $0.focusState == .onGoal }.count
-    }
-
-    private var alignmentScore: Double {
-        guard !recentSamples.isEmpty else { return 0 }
-        return Double(alignedCount) / Double(recentSamples.count)
+    private var summary: ActivityWindowSummary {
+        analyzer.summarize(samples: samples)
     }
 
     private var statusIcon: String {
-        if recentSamples.isEmpty { return "map" }
-        if offGoalCount >= 3 { return "exclamationmark.triangle.fill" }
-        if alignedCount >= max(1, recentSamples.count / 2) { return "checkmark.seal.fill" }
-        return "gauge.medium"
+        switch summary.state {
+        case .noSamples: return "map"
+        case .onTrack: return "checkmark.seal.fill"
+        case .mixed: return "gauge.medium"
+        case .drifting: return "exclamationmark.triangle.fill"
+        case .unknown: return "questionmark.circle.fill"
+        }
     }
 
     private var statusTint: Color {
-        if offGoalCount >= 3 { return .orange }
-        if alignedCount >= max(1, recentSamples.count / 2) { return .green }
-        return .purple
+        switch summary.state {
+        case .noSamples, .mixed, .unknown: return .purple
+        case .onTrack: return .green
+        case .drifting: return .orange
+        }
     }
 
     private var statusText: String {
-        guard !recentSamples.isEmpty else {
+        switch summary.state {
+        case .noSamples:
             return "No scouts yet. The compass wakes up after a few check-ins."
-        }
-        if offGoalCount >= 3 {
-            return "Your compass is wobbling. A comeback quest may be needed soon."
-        }
-        if alignedCount >= max(1, recentSamples.count / 2) {
+        case .onTrack:
             return "Nice! Your recent activity is mostly on quest."
+        case .mixed:
+            return "Gathering clues before judging this work window."
+        case .drifting:
+            return "Your compass is wobbling. A comeback quest may be needed soon."
+        case .unknown:
+            return "The scout needs model or permission setup before it can judge this window."
         }
-        return "Gathering clues before judging this work window."
     }
 }
 
 private struct QuestCard: View {
     let goal: Goal
     let samples: [ActivitySample]
+    private let analyzer = ActivityWindowAnalyzer()
 
     var body: some View {
         PlayfulInfoCard(icon: "star.fill", title: "Mini Quest", tint: .yellow) {
@@ -540,18 +535,27 @@ private struct QuestCard: View {
         }
     }
 
+    private var summary: ActivityWindowSummary {
+        analyzer.summarize(samples: samples)
+    }
+
     private var filledStars: Int {
-        min(3, samples.prefix(3).filter { $0.focusState == .onGoal }.count)
+        min(3, summary.alignedCount)
     }
 
     private var nextStep: String {
-        if samples.first?.focusState == .offGoal {
+        switch summary.state {
+        case .drifting:
             return "Comeback challenge: return to one concrete step for \(goal.title), then Scout Now."
-        }
-        if samples.first?.focusState == .unknown {
+        case .unknown:
             return "Setup quest: finish model and permission setup so the scout can read the board."
+        case .noSamples:
+            return "Start tiny: do one focused step, then let the scout check in."
+        case .onTrack:
+            return "Keep the combo alive: one focused block, one tiny win, then let the scout check in."
+        case .mixed:
+            return "Pick the next obvious action for \(goal.title) and keep the compass steady."
         }
-        return "Keep the combo alive: one focused block, one tiny win, then let the scout check in."
     }
 }
 
