@@ -14,6 +14,8 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
+APP_ICON_NAME="WatchMyBack"
+APP_ICON_SOURCE="$ROOT_DIR/Sources/WatchMyBack/Resources/AppIcon/$APP_ICON_NAME.icns"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -30,6 +32,9 @@ RESOURCE_BUNDLE="$BUILD_DIR/${APP_NAME}_${APP_NAME}.bundle"
 if [[ -d "$RESOURCE_BUNDLE" ]]; then
   cp -R "$RESOURCE_BUNDLE" "$APP_RESOURCES/"
 fi
+if [[ -f "$APP_ICON_SOURCE" ]]; then
+  cp "$APP_ICON_SOURCE" "$APP_RESOURCES/$APP_ICON_NAME.icns"
+fi
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -44,6 +49,8 @@ cat >"$INFO_PLIST" <<PLIST
   <string>Watch My Back</string>
   <key>CFBundleDisplayName</key>
   <string>Watch My Back</string>
+  <key>CFBundleIconFile</key>
+  <string>$APP_ICON_NAME</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -68,6 +75,8 @@ if [[ -z "$SIGNING_IDENTITY" ]]; then
   SIGNING_IDENTITY="-"
 fi
 xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
+xattr -dr com.apple.FinderInfo "$APP_BUNDLE" >/dev/null 2>&1 || true
+xattr -dr "com.apple.fileprovider.fpfs#P" "$APP_BUNDLE" >/dev/null 2>&1 || true
 codesign --force --deep --sign "$SIGNING_IDENTITY" "$APP_BUNDLE" >/dev/null
 
 open_app() {

@@ -71,5 +71,6 @@ The app may request Notification permission and Screen & System Audio Recording 
 The source app icon is SVG-first so the design stays sharp before raster conversion:
 
 - `Sources/WatchMyBack/Resources/AppIcon/WatchMyBackAppIcon.svg`
+- `Sources/WatchMyBack/Resources/AppIcon/WatchMyBack.icns`
 
-It is not wired as `CFBundleIconFile` yet. Convert this SVG into a macOS `.iconset` / `.icns` bundle before using it as the actual Dock/Finder app icon.
+The `.icns` file is generated from the SVG and wired into the staged app bundle as `CFBundleIconFile`.

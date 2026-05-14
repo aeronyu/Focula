@@ -1,78 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
   <title id="title">Watch My Back app icon</title>
-  <desc id="desc">Anime-inspired glass guardian eyes inside a sharp vector macOS app icon.</desc>
+  <desc id="desc">Pixel-art guardian eyes with glass highlights for the Watch My Back macOS app.</desc>
   <defs>
-    <linearGradient id="shell" x1="118" y1="86" x2="906" y2="938" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#78f2ff"/>
-      <stop offset="0.34" stop-color="#a88cff"/>
-      <stop offset="0.67" stop-color="#ff8ccc"/>
-      <stop offset="1" stop-color="#ffe17a"/>
-    </linearGradient>
-    <radialGradient id="glassGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(520 382) rotate(90) scale(524 554)">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.92"/>
-      <stop offset="0.28" stop-color="#e6fbff" stop-opacity="0.42"/>
-      <stop offset="0.7" stop-color="#20234f" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#080a24" stop-opacity="0.42"/>
-    </radialGradient>
-    <linearGradient id="visor" x1="230" y1="330" x2="794" y2="738" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f8fdff" stop-opacity="0.92"/>
-      <stop offset="0.23" stop-color="#d7fbff" stop-opacity="0.56"/>
-      <stop offset="0.5" stop-color="#8ea4ff" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#1c1f58" stop-opacity="0.72"/>
-    </linearGradient>
-    <linearGradient id="eyeLeft" x1="296" y1="432" x2="444" y2="584" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f9ffff"/>
-      <stop offset="0.45" stop-color="#7cf5ff"/>
-      <stop offset="1" stop-color="#3241ff"/>
-    </linearGradient>
-    <linearGradient id="eyeRight" x1="582" y1="432" x2="730" y2="584" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#fff7ff"/>
-      <stop offset="0.45" stop-color="#ff9add"/>
-      <stop offset="1" stop-color="#7034ff"/>
-    </linearGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="30" stdDeviation="32" flood-color="#151335" flood-opacity="0.34"/>
-      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#ffffff" flood-opacity="0.22"/>
-    </filter>
-    <filter id="innerGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="10" result="blur"/>
-      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-    </filter>
-    <clipPath id="squircleClip">
-      <path d="M512 62c155 0 265 22 344 101 79 79 101 189 101 349s-22 270-101 349c-79 79-189 101-344 101s-265-22-344-101C89 782 67 672 67 512s22-270 101-349C247 84 357 62 512 62Z"/>
+    <clipPath id="iconMask">
+      <path d="M128 128h768v64h64v640h-64v64H128v-64H64V192h64z"/>
     </clipPath>
+    <linearGradient id="pixelGlass" x1="128" y1="96" x2="896" y2="928" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6bf2ff"/>
+      <stop offset="0.28" stop-color="#8c8cff"/>
+      <stop offset="0.55" stop-color="#ff7fca"/>
+      <stop offset="1" stop-color="#ffd76a"/>
+    </linearGradient>
   </defs>
 
-  <g clip-path="url(#squircleClip)">
-    <path d="M512 62c155 0 265 22 344 101 79 79 101 189 101 349s-22 270-101 349c-79 79-189 101-344 101s-265-22-344-101C89 782 67 672 67 512s22-270 101-349C247 84 357 62 512 62Z" fill="url(#shell)"/>
-    <path d="M0 0h1024v1024H0z" fill="url(#glassGlow)"/>
-    <path d="M114 172c116-80 252-111 408-95 150 15 268 77 356 186-89-47-192-72-308-75-186-5-338 39-456 132V172Z" fill="#ffffff" opacity="0.18"/>
-    <path d="M90 708c136 108 282 160 438 154 157-6 290-70 400-193-35 146-94 227-181 268-70 33-149 45-235 45-153 0-263-21-344-101-41-42-66-94-78-173Z" fill="#0a0f2b" opacity="0.24"/>
-    <circle cx="232" cy="244" r="156" fill="#ffffff" opacity="0.13"/>
-    <circle cx="782" cy="796" r="205" fill="#fff1a8" opacity="0.14"/>
+  <g clip-path="url(#iconMask)">
+    <rect width="1024" height="1024" fill="#11143a"/>
+    <rect x="64" y="64" width="896" height="896" fill="url(#pixelGlass)"/>
+    <rect x="64" y="64" width="896" height="128" fill="#c9fbff" opacity="0.55"/>
+    <rect x="64" y="192" width="896" height="128" fill="#7ee8ff" opacity="0.36"/>
+    <rect x="64" y="320" width="896" height="192" fill="#917cff" opacity="0.48"/>
+    <rect x="64" y="512" width="896" height="192" fill="#ff7fca" opacity="0.36"/>
+    <rect x="64" y="704" width="896" height="256" fill="#1b1f53" opacity="0.45"/>
+
+    <rect x="128" y="128" width="128" height="64" fill="#ffffff" opacity="0.7"/>
+    <rect x="256" y="128" width="192" height="64" fill="#ffffff" opacity="0.34"/>
+    <rect x="768" y="768" width="128" height="64" fill="#fff2a8" opacity="0.4"/>
+    <rect x="832" y="704" width="64" height="64" fill="#fff2a8" opacity="0.28"/>
+
+    <rect x="192" y="320" width="640" height="64" fill="#eefcff" opacity="0.72"/>
+    <rect x="128" y="384" width="768" height="64" fill="#d9f8ff" opacity="0.84"/>
+    <rect x="128" y="448" width="768" height="192" fill="#1c255c" opacity="0.82"/>
+    <rect x="192" y="640" width="640" height="64" fill="#10173f" opacity="0.78"/>
+    <rect x="256" y="704" width="512" height="64" fill="#0a1030" opacity="0.62"/>
+
+    <rect x="224" y="448" width="256" height="64" fill="#a9fbff"/>
+    <rect x="192" y="512" width="320" height="64" fill="#48dfff"/>
+    <rect x="256" y="576" width="192" height="64" fill="#3155ff"/>
+    <rect x="320" y="448" width="64" height="64" fill="#ffffff"/>
+    <rect x="384" y="512" width="64" height="64" fill="#06143a"/>
+    <rect x="256" y="512" width="64" height="64" fill="#eaffff"/>
+    <rect x="448" y="512" width="64" height="64" fill="#172678"/>
+
+    <rect x="544" y="448" width="256" height="64" fill="#ffd8ff"/>
+    <rect x="512" y="512" width="320" height="64" fill="#ff75cf"/>
+    <rect x="576" y="576" width="192" height="64" fill="#7b3cff"/>
+    <rect x="640" y="448" width="64" height="64" fill="#ffffff"/>
+    <rect x="576" y="512" width="64" height="64" fill="#06143a"/>
+    <rect x="704" y="512" width="64" height="64" fill="#fff0ff"/>
+    <rect x="512" y="512" width="64" height="64" fill="#5e2ec9"/>
+
+    <rect x="256" y="256" width="192" height="64" fill="#ffffff" opacity="0.62"/>
+    <rect x="576" y="256" width="192" height="64" fill="#ffffff" opacity="0.62"/>
+    <rect x="448" y="384" width="128" height="320" fill="#ffffff" opacity="0.12"/>
+    <rect x="320" y="768" width="384" height="64" fill="#ffffff" opacity="0.2"/>
+
+    <rect x="64" y="64" width="64" height="128" fill="#ffffff" opacity="0.35"/>
+    <rect x="64" y="192" width="64" height="640" fill="#ffffff" opacity="0.12"/>
+    <rect x="896" y="192" width="64" height="640" fill="#030725" opacity="0.28"/>
+    <rect x="128" y="896" width="768" height="64" fill="#030725" opacity="0.36"/>
   </g>
 
-  <path d="M512 62c155 0 265 22 344 101 79 79 101 189 101 349s-22 270-101 349c-79 79-189 101-344 101s-265-22-344-101C89 782 67 672 67 512s22-270 101-349C247 84 357 62 512 62Z" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-width="10"/>
-
-  <g filter="url(#softShadow)">
-    <path d="M196 514c0-92 62-171 149-193 89-23 236-24 332-1 89 22 151 102 151 194 0 106-83 196-194 212-82 12-160 12-244 0-111-16-194-106-194-212Z" fill="url(#visor)"/>
-    <path d="M218 500c0-77 53-144 127-163 86-22 246-22 331 0 75 19 128 86 128 163 0 95-74 173-174 187-78 11-158 11-236 0-101-14-176-92-176-187Z" fill="#10183d" opacity="0.34"/>
-    <path d="M244 425c79-71 455-71 534 0 18 16 29 35 33 56-77-53-163-78-257-76-123 2-236 20-339 53 5-12 15-24 29-33Z" fill="#ffffff" opacity="0.28"/>
-  </g>
-
-  <g filter="url(#innerGlow)">
-    <path d="M291 500c42-62 126-78 188-34-20 85-70 132-150 143-32-20-45-62-38-109Z" fill="url(#eyeLeft)"/>
-    <path d="M733 500c-42-62-126-78-188-34 20 85 70 132 150 143 32-20 45-62 38-109Z" fill="url(#eyeRight)"/>
-    <path d="M340 485c22-27 61-37 96-23-20 48-47 76-82 83-17-13-23-35-14-60Z" fill="#06123a" opacity="0.72"/>
-    <path d="M684 485c-22-27-61-37-96-23 20 48 47 76 82 83 17-13 23-35 14-60Z" fill="#06123a" opacity="0.72"/>
-    <circle cx="374" cy="478" r="18" fill="#ffffff" opacity="0.95"/>
-    <circle cx="650" cy="478" r="18" fill="#ffffff" opacity="0.95"/>
-    <circle cx="405" cy="528" r="8" fill="#ffffff" opacity="0.72"/>
-    <circle cx="619" cy="528" r="8" fill="#ffffff" opacity="0.72"/>
-  </g>
-
-  <path d="M256 385c74-49 159-62 256-39 97-23 182-10 256 39" fill="none" stroke="#ffffff" stroke-opacity="0.58" stroke-width="18" stroke-linecap="round"/>
-  <path d="M512 358v310" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="8" stroke-linecap="round"/>
-  <path d="M358 720c86 39 222 39 308 0" fill="none" stroke="#ffffff" stroke-opacity="0.34" stroke-width="16" stroke-linecap="round"/>
-  <path d="M171 332c92-135 235-201 429-180" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="24" stroke-linecap="round"/>
+  <path d="M128 128h768v64h64v640h-64v64H128v-64H64V192h64z" fill="none" stroke="#ffffff" stroke-width="32"/>
+  <path d="M192 192h640" stroke="#ffffff" stroke-width="32" opacity="0.56"/>
+  <path d="M192 832h640" stroke="#050826" stroke-width="32" opacity="0.42"/>
 </svg>
