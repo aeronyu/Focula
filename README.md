@@ -65,3 +65,11 @@ rtk swift test
 ```
 
 The app may request Notification permission and Screen & System Audio Recording permission when you resume tracking or manually sample.
+
+## App icon
+
+The source app icon is SVG-first so the design stays sharp before raster conversion:
+
+- `Sources/WatchMyBack/Resources/AppIcon/WatchMyBackAppIcon.svg`
+
+It is not wired as `CFBundleIconFile` yet. Convert this SVG into a macOS `.iconset` / `.icns` bundle before using it as the actual Dock/Finder app icon.

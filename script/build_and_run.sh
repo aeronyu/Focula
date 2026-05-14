@@ -67,6 +67,7 @@ fi
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   SIGNING_IDENTITY="-"
 fi
+xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
 codesign --force --deep --sign "$SIGNING_IDENTITY" "$APP_BUNDLE" >/dev/null
 
 open_app() {
