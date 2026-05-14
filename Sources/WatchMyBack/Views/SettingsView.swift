@@ -24,6 +24,66 @@ struct SettingsView: View {
 
                 LabeledContent("Current", value: model.selectedModelLabel)
                 LabeledContent("Status", value: model.selectedModelStatusText)
+                Text(model.settings.modelSelection.provider.setupSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if model.settings.modelSelection.provider != .builtInGemma {
+                Section(providerSettingsTitle) {
+                    LabeledContent("Provider", value: model.settings.modelSelection.provider.displayName)
+
+                    TextField(
+                        "Endpoint",
+                        text: Binding(
+                            get: { model.endpointString },
+                            set: { model.updateEndpoint($0) }
+                        )
+                    )
+                    .textFieldStyle(.roundedBorder)
+
+                    TextField(
+                        "Model",
+                        text: Binding(
+                            get: { model.settings.modelSelection.modelID },
+                            set: { model.updateModelName($0) }
+                        )
+                    )
+                    .textFieldStyle(.roundedBorder)
+
+                    HStack {
+                        Button {
+                            model.resetSelectedProviderDefaults()
+                        } label: {
+                            Label("Use Defaults", systemImage: "arrow.counterclockwise")
+                        }
+
+                        Button {
+                            Task { await model.testSelectedModel() }
+                        } label: {
+                            Label("Test Connection", systemImage: "checkmark.circle")
+                        }
+                        .disabled(model.isTestingModel)
+                    }
+
+                    if model.settings.modelSelection.provider == .cloudOptIn {
+                        Toggle(
+                            "Allow screenshots to leave this Mac",
+                            isOn: Binding(
+                                get: { model.settings.modelSelection.cloudClassificationAllowed },
+                                set: { model.updateCloudClassificationAllowed($0) }
+                            )
+                        )
+
+                        Text("Cloud classification stays blocked until this is enabled.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text(providerHelpText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
 
             Section("Built-in local model") {
@@ -162,44 +222,6 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if model.settings.modelSelection.provider != .builtInGemma {
-                Section("Provider hookup") {
-                    TextField(
-                        "Endpoint",
-                        text: Binding(
-                            get: { model.endpointString },
-                            set: { model.updateEndpoint($0) }
-                        )
-                    )
-
-                    TextField(
-                        "Model",
-                        text: Binding(
-                            get: { model.settings.modelSelection.modelID },
-                            set: { model.updateModelName($0) }
-                        )
-                    )
-
-                    if model.settings.modelSelection.provider == .cloudOptIn {
-                        Toggle(
-                            "Allow screenshots to leave this Mac",
-                            isOn: Binding(
-                                get: { model.settings.modelSelection.cloudClassificationAllowed },
-                                set: { model.updateCloudClassificationAllowed($0) }
-                            )
-                        )
-
-                        Text("Cloud classification stays blocked until this is enabled.")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    } else {
-                        Text("Optional providers are used only when already available. Built-in Gemma remains the default path.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
             Section("Sampling") {
                 Stepper(
                     value: Binding(
@@ -251,6 +273,25 @@ struct SettingsView: View {
     private var installConfirmationMessage: String {
         let descriptor = model.selectedBuiltInModelDescriptor
         return "Watch My Back will download \(descriptor.displayName) from \(descriptor.repository). Estimated size: \(descriptor.estimatedDownloadSize). Classification stays local and raw screenshots are discarded after each request."
+    }
+
+    private var providerSettingsTitle: String {
+        "\(model.settings.modelSelection.provider.displayName) connection"
+    }
+
+    private var providerHelpText: String {
+        switch model.settings.modelSelection.provider {
+        case .oMLX:
+            return "oMLX is optional. Watch My Back will not install it; point this at an existing oMLX/OpenAI-compatible vision server."
+        case .lmStudio:
+            return "In LM Studio, start the local server and load a vision-capable model. Then match the endpoint and model id here."
+        case .openAICompatible:
+            return "Use a local OpenAI-compatible vision server. Endpoint should usually end with /v1/chat/completions."
+        case .cloudOptIn:
+            return "Cloud provider settings."
+        case .builtInGemma:
+            return ""
+        }
     }
 
     private var deleteConfirmationMessage: String {

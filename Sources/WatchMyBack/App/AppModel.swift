@@ -158,6 +158,7 @@ final class AppModel: ObservableObject {
     }
 
     func switchModelProvider(_ provider: ModelProvider) {
+        let previousProvider = settings.modelSelection.provider
         settings.modelSelection.provider = provider
 
         switch provider {
@@ -170,17 +171,13 @@ final class AppModel: ObservableObject {
             settings.model = descriptor.id
             settings.builtInModelStatus = builtInRuntime.currentStatus(for: descriptor)
         case .oMLX:
-            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "mlx-community/gemma-4-e2b-it" : settings.modelSelection.modelID
-            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? URL(string: "http://127.0.0.1:8123/v1/chat/completions")!
+            applyProviderDefaultsIfNeeded(provider, previousProvider: previousProvider)
         case .lmStudio:
-            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "local-vision" : settings.modelSelection.modelID
-            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? URL(string: "http://127.0.0.1:1234/v1/chat/completions")!
+            applyProviderDefaultsIfNeeded(provider, previousProvider: previousProvider)
         case .openAICompatible:
-            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? settings.model : settings.modelSelection.modelID
-            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? settings.endpoint
+            applyProviderDefaultsIfNeeded(provider, previousProvider: previousProvider)
         case .cloudOptIn:
-            settings.modelSelection.modelID = settings.modelSelection.modelID.isEmpty ? "cloud-vision" : settings.modelSelection.modelID
-            settings.modelSelection.endpoint = settings.modelSelection.endpoint ?? settings.endpoint
+            applyProviderDefaultsIfNeeded(provider, previousProvider: previousProvider)
             settings.modelSelection.cloudClassificationAllowed = false
         }
 
@@ -205,6 +202,19 @@ final class AppModel: ObservableObject {
 
     func updateCloudClassificationAllowed(_ allowed: Bool) {
         settings.modelSelection.cloudClassificationAllowed = allowed
+        saveSettings()
+        refreshRuntimeStatuses()
+    }
+
+    func resetSelectedProviderDefaults() {
+        let provider = settings.modelSelection.provider
+        guard provider != .builtInGemma else { return }
+        settings.modelSelection.modelID = provider.defaultModelID
+        settings.modelSelection.endpoint = provider.defaultEndpoint
+        settings.model = provider.defaultModelID
+        if let endpoint = provider.defaultEndpoint {
+            settings.endpoint = endpoint
+        }
         saveSettings()
         refreshRuntimeStatuses()
     }
@@ -457,6 +467,24 @@ final class AppModel: ObservableObject {
         )
     }
 
+    private func applyProviderDefaultsIfNeeded(_ provider: ModelProvider, previousProvider: ModelProvider) {
+        let shouldResetModel = previousProvider != provider
+            || BuiltInModelCatalog.descriptor(for: settings.modelSelection.modelID) != nil
+            || settings.modelSelection.modelID.isEmpty
+        if shouldResetModel {
+            settings.modelSelection.modelID = provider.defaultModelID
+            settings.model = provider.defaultModelID
+        }
+
+        if previousProvider != provider || settings.modelSelection.endpoint == nil {
+            settings.modelSelection.endpoint = provider.defaultEndpoint
+        }
+
+        if let endpoint = settings.modelSelection.endpoint {
+            settings.endpoint = endpoint
+        }
+    }
+
     func refreshBuiltInModelFolders() {
         do {
             builtInModelFolders = try ModelSupportPaths.installedBuiltInModelFolders()
@@ -515,7 +543,14 @@ final class AppModel: ObservableObject {
         case .mixed:
             return "Gathering recent activity context for \(goal.title)."
         case .unknown:
-            return "Unknown: model runtime or Screen Recording permission may need setup."
+            if !screenRecordingPermission.isGranted {
+                return "Screen Recording is required before Watch My Back can classify activity."
+            }
+            if settings.modelSelection.provider == .builtInGemma,
+               settings.builtInModelStatus.installState != .ready {
+                return "Install or test the selected built-in Gemma model in Settings."
+            }
+            return "Unknown: check the selected provider endpoint, model id, and runtime status in Settings."
         case .noSamples:
             return "First check-in recorded for \(goal.title)."
         }

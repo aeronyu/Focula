@@ -58,14 +58,15 @@ public struct ModelRuntimeDetector {
                     isUsable: available
                 )
             case .openAICompatible:
+                let configured = selected.provider == .openAICompatible
                 return ModelRuntimeStatus(
                     provider: .openAICompatible,
-                    modelID: selected.provider == .openAICompatible ? selected.modelID : "local-vision",
-                    installState: .ready,
-                    statusMessage: "Manual endpoint available when configured.",
+                    modelID: configured ? selected.modelID : ModelProvider.openAICompatible.defaultModelID,
+                    installState: configured ? .ready : .missing,
+                    statusMessage: configured ? "Manual endpoint configured." : "Select and configure a manual endpoint.",
                     storagePath: nil,
                     isVisionCapable: true,
-                    isUsable: true
+                    isUsable: configured
                 )
             case .cloudOptIn:
                 let allowed = selected.provider == .cloudOptIn && selected.cloudClassificationAllowed

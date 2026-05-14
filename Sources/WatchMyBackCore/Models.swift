@@ -188,6 +188,51 @@ public enum ModelProvider: String, Codable, CaseIterable, Identifiable, Sendable
         case .oMLX, .lmStudio, .openAICompatible, .cloudOptIn: true
         }
     }
+
+    public var defaultEndpoint: URL? {
+        switch self {
+        case .builtInGemma:
+            nil
+        case .oMLX:
+            URL(string: "http://127.0.0.1:8123/v1/chat/completions")
+        case .lmStudio:
+            URL(string: "http://127.0.0.1:1234/v1/chat/completions")
+        case .openAICompatible:
+            URL(string: "http://127.0.0.1:1234/v1/chat/completions")
+        case .cloudOptIn:
+            URL(string: "https://api.openai.com/v1/chat/completions")
+        }
+    }
+
+    public var defaultModelID: String {
+        switch self {
+        case .builtInGemma:
+            BuiltInModelCatalog.defaultModel.id
+        case .oMLX:
+            "mlx-community/gemma-4-e2b-it-4bit"
+        case .lmStudio:
+            "local-vision"
+        case .openAICompatible:
+            "local-vision"
+        case .cloudOptIn:
+            "gpt-4.1-mini"
+        }
+    }
+
+    public var setupSummary: String {
+        switch self {
+        case .builtInGemma:
+            "App-managed local MLX runtime. Install one built-in model below; no external app is required."
+        case .oMLX:
+            "Optional external oMLX-compatible server. Configure the local chat-completions endpoint only if you already run it."
+        case .lmStudio:
+            "Optional LM Studio local server. Start LM Studio's OpenAI-compatible server, then use its endpoint and loaded model id here."
+        case .openAICompatible:
+            "Manual OpenAI-compatible vision endpoint. Use this for any local server that supports /v1/chat/completions with image input."
+        case .cloudOptIn:
+            "Cloud vision endpoint. Screenshots are blocked until the explicit cloud opt-in below is enabled."
+        }
+    }
 }
 
 public struct BuiltInModelDescriptor: Codable, Equatable, Identifiable, Sendable {

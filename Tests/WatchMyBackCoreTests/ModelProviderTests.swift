@@ -103,6 +103,13 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertEqual(statuses.first(where: { $0.provider == .oMLX })?.isUsable, false)
         XCTAssertEqual(statuses.first(where: { $0.provider == .lmStudio })?.isUsable, false)
     }
+
+    func testOptionalProviderDefaultsAreProviderSpecific() {
+        XCTAssertEqual(ModelProvider.oMLX.defaultEndpoint?.absoluteString, "http://127.0.0.1:8123/v1/chat/completions")
+        XCTAssertEqual(ModelProvider.lmStudio.defaultEndpoint?.absoluteString, "http://127.0.0.1:1234/v1/chat/completions")
+        XCTAssertEqual(ModelProvider.openAICompatible.defaultModelID, "local-vision")
+        XCTAssertEqual(ModelProvider.cloudOptIn.defaultModelID, "gpt-4.1-mini")
+    }
 }
 
 private struct StaticCommandProbe: CommandProbing {
