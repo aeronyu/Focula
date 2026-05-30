@@ -68,6 +68,7 @@ final class AppModel: ObservableObject {
         refreshBuiltInModelFolders()
         startPermissionRefreshTimer()
         NotificationNudgePresenter.shared.requestAuthorization()
+        updateIdleTrackingStatus()
         if !settings.paused {
             startTimer()
         }
@@ -417,9 +418,9 @@ final class AppModel: ObservableObject {
 
         if settings.paused {
             stopTimer()
-            statusMessage = "Paused. No screenshots or activity samples are being captured."
+            updateIdleTrackingStatus()
         } else {
-            statusMessage = "Tracking focus hours. Screenshots are classified locally and discarded."
+            updateIdleTrackingStatus()
             startTimer()
             Task { await sampleNow(manual: true) }
         }
@@ -585,6 +586,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func updateIdleTrackingStatus() {
+        if settings.paused {
+            statusMessage = "Paused. No screenshots or activity samples are being captured."
+        } else if let activeGoal {
+            statusMessage = "Tracking focus hours for \(activeGoal.title). Screenshots are classified locally and discarded."
+        } else {
+            statusMessage = "No active goal. Add a goal before tracking."
+        }
+    }
+
     private func refreshRuntimeStatuses() {
         if settings.builtInModelStatus.installState != .downloading {
             settings.builtInModelStatus = builtInRuntime.currentStatus(for: selectedBuiltInModelDescriptor)
@@ -659,6 +670,19 @@ final class AppModel: ObservableObject {
         goal: Goal,
         windowSummary: ActivityWindowSummary
     ) -> String {
+        switch sample.activityCategory {
+        case "built_in_model_not_ready":
+            return "Finish local model setup in Settings before Scout can summarize activity."
+        case "screen_recording_permission_missing":
+            return "Grant Screen Recording so Scout can classify activity locally."
+        case "cloud_blocked":
+            return "Cloud classification is blocked until screenshot opt-in is enabled."
+        case "classifier_unavailable", "parse_failed":
+            return "The selected model did not return a usable activity result. Check model settings."
+        default:
+            break
+        }
+
         if sample.nudgeShown {
             return "Comeback nudge sent after sustained drift from \(goal.title)."
         }

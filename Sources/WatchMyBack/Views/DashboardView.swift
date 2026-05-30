@@ -301,15 +301,16 @@ private struct TimelinePanel: View {
                     .foregroundStyle(.secondary)
             }
 
-            if model.recentSamples.isEmpty {
+            let entries = activityLogEntries
+            if entries.isEmpty {
                 ContentUnavailableView(
-                    "No activity yet",
+                    model.recentSamples.isEmpty ? "No activity yet" : "No useful activity yet",
                     systemImage: "map",
-                    description: Text("Begin Quest or run Scout Now. Local summaries appear here after Scout checks your screen.")
+                    description: Text(emptyActivityLogMessage)
                 )
                 .frame(minHeight: 260)
             } else {
-                ForEach(activityLogEntries) { entry in
+                ForEach(entries) { entry in
                     ActivityObservationRow(entry: entry)
                 }
             }
@@ -324,7 +325,21 @@ private struct TimelinePanel: View {
     }
 
     private var activityLogEntries: [ActivityLogEntry] {
-        DashboardCopy.activityLogEntries(from: model.recentSamples)
+        DashboardCopy.activityLogEntries(
+            from: model.recentSamples,
+            setupState: .init(
+                builtInModelReady: model.settings.builtInModelStatus.installState == .ready,
+                screenRecordingGranted: model.screenRecordingPermission.isGranted,
+                cloudOptInAllowed: model.settings.modelSelection.cloudClassificationAllowed
+            )
+        )
+    }
+
+    private var emptyActivityLogMessage: String {
+        if model.recentSamples.isEmpty {
+            return "Begin Quest or run Scout Now. Local summaries appear here after Scout checks your screen."
+        }
+        return "Recent setup-only check-ins were resolved or hidden. New local summaries will appear after Scout reads real activity."
     }
 }
 
@@ -376,13 +391,29 @@ private struct ActivityLogEntry: Identifiable {
     let nudgeShown: Bool
 }
 
+private struct ActivityLogSetupState {
+    let builtInModelReady: Bool
+    let screenRecordingGranted: Bool
+    let cloudOptInAllowed: Bool
+}
+
 private enum DashboardCopy {
-    static func activityLogEntries(from samples: [ActivitySample]) -> [ActivityLogEntry] {
+    static func activityLogEntries(
+        from samples: [ActivitySample],
+        setupState: ActivityLogSetupState = ActivityLogSetupState(
+            builtInModelReady: false,
+            screenRecordingGranted: false,
+            cloudOptInAllowed: false
+        )
+    ) -> [ActivityLogEntry] {
         var entries: [ActivityLogEntry] = []
         var setupCounts: [String: (sample: ActivitySample, count: Int)] = [:]
 
         for sample in samples.prefix(30) {
             if isSetupNoise(sample) {
+                guard shouldShowSetupNoise(sample, setupState: setupState) else {
+                    continue
+                }
                 let key = sample.activityCategory
                 if let current = setupCounts[key] {
                     setupCounts[key] = (current.sample, current.count + 1)
@@ -470,6 +501,19 @@ private enum DashboardCopy {
             return true
         default:
             return false
+        }
+    }
+
+    private static func shouldShowSetupNoise(_ sample: ActivitySample, setupState: ActivityLogSetupState) -> Bool {
+        switch sample.activityCategory {
+        case "built_in_model_not_ready":
+            return !setupState.builtInModelReady
+        case "screen_recording_permission_missing":
+            return !setupState.screenRecordingGranted
+        case "cloud_blocked":
+            return !setupState.cloudOptInAllowed
+        default:
+            return true
         }
     }
 
