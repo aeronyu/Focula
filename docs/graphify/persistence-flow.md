@@ -59,6 +59,7 @@ Stores encoded `AppSettings`, including model/runtime configuration.
 
 - `DatabaseStore.applicationStoreURL()`
 - `DatabaseStore.saveGoal(_:)`
+- `DatabaseStore.deleteGoal(id:)`
 - `DatabaseStore.fetchGoals()`
 - `DatabaseStore.saveActivitySample(_:)`
 - `DatabaseStore.fetchRecentSamples(limit:)`

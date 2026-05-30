@@ -4,6 +4,7 @@ import WatchMyBackCore
 struct GoalListView: View {
     @EnvironmentObject private var model: AppModel
     @State private var editingDraft: GoalDraft?
+    @State private var missionPendingDelete: Goal?
 
     var body: some View {
         List(selection: $model.selectedGoalID) {
@@ -24,6 +25,13 @@ struct GoalListView: View {
                                 Label("Make Active", systemImage: "scope")
                             }
                             .disabled(goal.isActive)
+
+                            Button(role: .destructive) {
+                                missionPendingDelete = goal
+                            } label: {
+                                Label("Remove Mission", systemImage: "trash")
+                            }
+                            .disabled(model.goals.count <= 1)
                         }
                 }
             }
@@ -45,6 +53,15 @@ struct GoalListView: View {
                     Label("Edit Mission", systemImage: "pencil")
                 }
                 .disabled(model.selectedGoal == nil)
+
+                Button(role: .destructive) {
+                    if let goal = model.selectedGoal {
+                        missionPendingDelete = goal
+                    }
+                } label: {
+                    Label("Remove Mission", systemImage: "trash")
+                }
+                .disabled(model.selectedGoal == nil || model.goals.count <= 1)
             }
         }
         .sheet(item: $editingDraft) { draft in
@@ -56,6 +73,19 @@ struct GoalListView: View {
                     editingDraft = nil
                 }
             )
+        }
+        .alert("Remove mission?", isPresented: deleteAlertBinding) {
+            Button("Cancel", role: .cancel) {
+                missionPendingDelete = nil
+            }
+            Button("Remove", role: .destructive) {
+                if let missionPendingDelete {
+                    model.deleteMission(missionPendingDelete)
+                }
+                missionPendingDelete = nil
+            }
+        } message: {
+            Text(deleteMessage)
         }
         .safeAreaInset(edge: .bottom) {
             VStack(alignment: .leading, spacing: 8) {
@@ -69,6 +99,24 @@ struct GoalListView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.bar)
         }
+    }
+
+    private var deleteAlertBinding: Binding<Bool> {
+        Binding(
+            get: { missionPendingDelete != nil },
+            set: { isPresented in
+                if !isPresented {
+                    missionPendingDelete = nil
+                }
+            }
+        )
+    }
+
+    private var deleteMessage: String {
+        guard let missionPendingDelete else {
+            return ""
+        }
+        return "This removes \"\(missionPendingDelete.title)\" from your mission list. Past activity samples remain as history."
     }
 }
 

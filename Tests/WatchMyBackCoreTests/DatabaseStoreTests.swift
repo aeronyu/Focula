@@ -72,6 +72,33 @@ final class DatabaseStoreTests: XCTestCase {
         XCTAssertEqual(try store.fetchRecentSamples(limit: 1).first?.activitySummary, "Running local checks")
     }
 
+    func testDeletesGoalWithoutDeletingActivityHistory() throws {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("watch-my-back-delete-\(UUID().uuidString).sqlite")
+            .path
+        let store = try DatabaseStore(path: path)
+        let goal = Goal.starter
+        let sample = ActivitySample(
+            timestamp: Date(timeIntervalSince1970: 3_000),
+            appName: "Xcode",
+            bundleIdentifier: "com.apple.dt.Xcode",
+            goalID: goal.id,
+            focusState: .onGoal,
+            activityCategory: "coding",
+            activitySummary: "Editing Swift",
+            confidence: 0.9,
+            durationSeconds: 60,
+            nudgeShown: false
+        )
+
+        try store.saveGoal(goal)
+        try store.saveActivitySample(sample)
+        try store.deleteGoal(id: goal.id)
+
+        XCTAssertTrue(try store.fetchGoals().isEmpty)
+        XCTAssertEqual(try store.fetchRecentSamples(limit: 1).first?.activitySummary, "Editing Swift")
+    }
+
     private func createLegacyActivitySamplesTable(path: String) throws {
         var db: OpaquePointer?
         guard sqlite3_open(path, &db) == SQLITE_OK, let db else {

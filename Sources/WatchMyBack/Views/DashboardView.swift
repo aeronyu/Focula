@@ -302,7 +302,7 @@ private struct TimelinePanel: View {
                 Text("Adventure Log")
                     .font(.title3.bold())
                 Spacer()
-                Text("last 10 scouts")
+                Text("latest useful events")
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
@@ -315,8 +315,8 @@ private struct TimelinePanel: View {
                 )
                 .frame(minHeight: 260)
             } else {
-                ForEach(Array(model.recentSamples.prefix(10))) { sample in
-                    ActivityObservationRow(sample: sample)
+                ForEach(activityLogEntries) { entry in
+                    ActivityObservationRow(entry: entry)
                 }
             }
         }
@@ -328,33 +328,37 @@ private struct TimelinePanel: View {
                 .stroke(.white.opacity(0.18), lineWidth: 1)
         }
     }
+
+    private var activityLogEntries: [ActivityLogEntry] {
+        DashboardCopy.activityLogEntries(from: model.recentSamples)
+    }
 }
 
 private struct ActivityObservationRow: View {
-    let sample: ActivitySample
+    let entry: ActivityLogEntry
 
     var body: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(sample.focusState.tint.opacity(0.14))
-                Image(systemName: sample.focusState.symbolName)
-                    .foregroundStyle(sample.focusState.tint)
+                    .fill(entry.tint.opacity(0.14))
+                Image(systemName: entry.icon)
+                    .foregroundStyle(entry.tint)
             }
             .frame(width: 42, height: 42)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(activityTitle)
+                Text(entry.title)
                     .font(.headline)
                     .lineLimit(1)
-                Text("Scout checked \(sample.appName) at \(DisplayFormatters.time(sample.timestamp))")
+                Text(entry.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
             Spacer()
-            if sample.nudgeShown {
+            if entry.nudgeShown {
                 Text("Nudge")
                     .font(.caption.bold())
                     .foregroundStyle(.orange)
@@ -364,20 +368,7 @@ private struct ActivityObservationRow: View {
             }
         }
         .padding(12)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    private var activityTitle: String {
-        DashboardCopy.activitySummary(for: sample)
-    }
-
-    private var rowBackground: Color {
-        switch sample.focusState {
-        case .onGoal: return Color.green.opacity(0.10)
-        case .maybe: return Color.yellow.opacity(0.12)
-        case .offGoal: return Color.orange.opacity(0.12)
-        case .unknown: return Color.gray.opacity(0.10)
-        }
+        .background(entry.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -569,7 +560,45 @@ private struct PlayfulInfoCard<Content: View>: View {
     }
 }
 
+private struct ActivityLogEntry: Identifiable {
+    let id: String
+    let title: String
+    let detail: String
+    let icon: String
+    let tint: Color
+    let background: Color
+    let nudgeShown: Bool
+}
+
 private enum DashboardCopy {
+    static func activityLogEntries(from samples: [ActivitySample]) -> [ActivityLogEntry] {
+        var entries: [ActivityLogEntry] = []
+        var setupCounts: [String: (sample: ActivitySample, count: Int)] = [:]
+
+        for sample in samples.prefix(30) {
+            if isSetupNoise(sample) {
+                let key = sample.activityCategory
+                if let current = setupCounts[key] {
+                    setupCounts[key] = (current.sample, current.count + 1)
+                } else {
+                    setupCounts[key] = (sample, 1)
+                }
+                continue
+            }
+
+            entries.append(activityEntry(for: sample))
+            if entries.count >= 10 {
+                break
+            }
+        }
+
+        let setupEntries = setupCounts.values
+            .sorted { $0.sample.timestamp > $1.sample.timestamp }
+            .map { setupEntry(for: $0.sample, count: $0.count) }
+
+        return Array((setupEntries + entries).prefix(10))
+    }
+
     static func activitySummary(for sample: ActivitySample) -> String {
         if let summary = sample.activitySummary, !summary.isEmpty {
             return summary
@@ -597,6 +626,79 @@ private enum DashboardCopy {
             case .unknown:
                 return humanize(sample.activityCategory, fallback: "Activity could not be interpreted")
             }
+        }
+    }
+
+    private static func activityEntry(for sample: ActivitySample) -> ActivityLogEntry {
+        ActivityLogEntry(
+            id: sample.id.uuidString,
+            title: activitySummary(for: sample),
+            detail: "Scout checked \(sample.appName) at \(DisplayFormatters.time(sample.timestamp))",
+            icon: sample.focusState.symbolName,
+            tint: sample.focusState.tint,
+            background: rowBackground(for: sample.focusState),
+            nudgeShown: sample.nudgeShown
+        )
+    }
+
+    private static func setupEntry(for sample: ActivitySample, count: Int) -> ActivityLogEntry {
+        let plural = count == 1 ? "check-in" : "check-ins"
+        return ActivityLogEntry(
+            id: "setup-\(sample.activityCategory)",
+            title: setupTitle(for: sample),
+            detail: "\(count) \(plural) need setup · latest \(DisplayFormatters.time(sample.timestamp))",
+            icon: setupIcon(for: sample),
+            tint: .purple,
+            background: Color.purple.opacity(0.08),
+            nudgeShown: false
+        )
+    }
+
+    private static func isSetupNoise(_ sample: ActivitySample) -> Bool {
+        switch sample.activityCategory {
+        case "built_in_model_not_ready",
+             "screen_recording_permission_missing",
+             "classifier_unavailable",
+             "unknown",
+             "cloud_blocked":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func setupTitle(for sample: ActivitySample) -> String {
+        switch sample.activityCategory {
+        case "built_in_model_not_ready":
+            return "Finish local model setup"
+        case "screen_recording_permission_missing":
+            return "Grant Screen Recording"
+        case "cloud_blocked":
+            return "Cloud scout needs opt-in"
+        default:
+            return "Scout setup needs attention"
+        }
+    }
+
+    private static func setupIcon(for sample: ActivitySample) -> String {
+        switch sample.activityCategory {
+        case "screen_recording_permission_missing":
+            return "camera.viewfinder"
+        case "built_in_model_not_ready":
+            return "cpu"
+        case "cloud_blocked":
+            return "lock.shield"
+        default:
+            return "wrench.and.screwdriver"
+        }
+    }
+
+    private static func rowBackground(for focusState: WatchMyBackCore.FocusState) -> Color {
+        switch focusState {
+        case .onGoal: return Color.green.opacity(0.10)
+        case .maybe: return Color.yellow.opacity(0.12)
+        case .offGoal: return Color.orange.opacity(0.12)
+        case .unknown: return Color.gray.opacity(0.10)
         }
     }
 

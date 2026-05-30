@@ -94,6 +94,15 @@ public final class DatabaseStore {
         }
     }
 
+    public func deleteGoal(id: UUID) throws {
+        let sql = "DELETE FROM goals WHERE id = ?;"
+
+        try withStatement(sql) { statement in
+            bindText(statement, 1, id.uuidString)
+            try step(statement)
+        }
+    }
+
     public func seedDefaultGoalIfNeeded() throws -> Goal {
         let goals = try fetchGoals()
         if let active = goals.first(where: \.isActive) {

@@ -388,6 +388,29 @@ final class AppModel: ObservableObject {
         saveMission(mission)
     }
 
+    func deleteMission(_ mission: Goal) {
+        guard goals.count > 1 else {
+            lastError = "Keep at least one mission."
+            return
+        }
+
+        if store == nil {
+            goals.removeAll { $0.id == mission.id }
+            ensureActiveMissionAfterDeleting(missionID: mission.id)
+            statusMessage = "\(mission.title) mission removed."
+            return
+        }
+
+        do {
+            try store?.deleteGoal(id: mission.id)
+            reloadFromStore()
+            ensureActiveMissionAfterDeleting(missionID: mission.id)
+            statusMessage = "\(mission.title) mission removed."
+        } catch {
+            lastError = "Could not remove mission: \(error.localizedDescription)"
+        }
+    }
+
     func togglePaused() {
         settings.paused.toggle()
         saveSettings()
@@ -523,6 +546,35 @@ final class AppModel: ObservableObject {
         } catch {
             lastError = "Could not reload activity: \(error.localizedDescription)"
         }
+    }
+
+    private func ensureActiveMissionAfterDeleting(missionID: UUID) {
+        if selectedGoalID == missionID {
+            selectedGoalID = activeGoal?.id
+        }
+
+        if goals.contains(where: \.isActive) {
+            return
+        }
+
+        guard var fallback = goals.first else {
+            return
+        }
+
+        fallback.isActive = true
+        if store == nil {
+            if let index = goals.firstIndex(where: { $0.id == fallback.id }) {
+                goals[index] = fallback
+            }
+        } else {
+            do {
+                try store?.saveGoal(fallback)
+                reloadFromStore()
+            } catch {
+                lastError = "Could not activate fallback mission: \(error.localizedDescription)"
+            }
+        }
+        selectedGoalID = fallback.id
     }
 
     private func saveSettings() {

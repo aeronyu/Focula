@@ -31,7 +31,8 @@ Nudges should be based on sustained drift from `ActivityWindowAnalyzer`, not a s
 
 ```text
 ActivitySample.activitySummary / activityCategory / focusState
-  -> DashboardCopy.activitySummary(for:)
+  -> DashboardCopy.activityLogEntries(from:)
+  -> setup/unknown rows coalesced by category
   -> ActivityObservationRow
   -> Adventure Log
 
@@ -84,6 +85,12 @@ For `cloudOptIn`, `ModelRouter` returns `CloudOptInBlockedClassifier` until the 
 GoalListView mission editor
   -> AppModel.saveMission(_:)
   -> DatabaseStore.saveGoal(_:)
+  -> goals table
+
+GoalListView remove mission
+  -> confirmation alert
+  -> AppModel.deleteMission(_:)
+  -> DatabaseStore.deleteGoal(id:)
   -> goals table
 
 ActivitySample
