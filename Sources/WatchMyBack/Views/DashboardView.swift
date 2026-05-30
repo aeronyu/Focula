@@ -9,48 +9,29 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 22) {
                 MissionHeroCard()
 
-                HStack(alignment: .top, spacing: 16) {
+                LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 14) {
                     FocusRingCard()
-                    MetricTile(title: "Focus Loot", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "banked today", icon: "bolt.fill", tint: .green)
-                    MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "hero recoveries", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
+                    MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .green)
+                    MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "course corrections", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
                     MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .purple)
                 }
 
-                HStack(alignment: .top, spacing: 16) {
-                    TimelinePanel()
-                    MissionInsightPanel()
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 16) {
+                        TimelinePanel()
+                        MissionInsightPanel()
+                    }
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        TimelinePanel()
+                        MissionInsightPanel()
+                    }
                 }
             }
             .padding(24)
         }
         .background {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.13),
-                        Color.cyan.opacity(0.10),
-                        Color.orange.opacity(0.12),
-                        Color(nsColor: .windowBackgroundColor)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                Circle()
-                    .fill(Color.pink.opacity(0.12))
-                    .frame(width: 420, height: 420)
-                    .blur(radius: 50)
-                    .offset(x: -360, y: -240)
-                Circle()
-                    .fill(Color.yellow.opacity(0.14))
-                    .frame(width: 360, height: 360)
-                    .blur(radius: 60)
-                    .offset(x: 420, y: -120)
-                Circle()
-                    .fill(Color.mint.opacity(0.13))
-                    .frame(width: 320, height: 320)
-                    .blur(radius: 60)
-                    .offset(x: 260, y: 360)
-            }
+            dashboardBackground
             .ignoresSafeArea()
         }
         .toolbar {
@@ -76,6 +57,25 @@ struct DashboardView: View {
         .onAppear {
             model.refreshScreenRecordingPermission()
         }
+    }
+
+    private var metricColumns: [GridItem] {
+        [
+            GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 14, alignment: .top)
+        ]
+    }
+
+    private var dashboardBackground: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(nsColor: .windowBackgroundColor),
+                Color.purple.opacity(0.08),
+                Color.cyan.opacity(0.07),
+                Color.orange.opacity(0.06)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 }
 
@@ -137,7 +137,7 @@ private struct MissionHeroCard: View {
                     .font(.callout)
                     .foregroundStyle(.orange)
                     .padding(10)
-                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
             }
 
             if !model.screenRecordingPermission.isGranted {
@@ -145,9 +145,9 @@ private struct MissionHeroCard: View {
             }
         }
         .padding(24)
-        .background(heroBackground, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .background(heroBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(.white.opacity(0.22), lineWidth: 1)
         }
         .shadow(color: Color.purple.opacity(0.18), radius: 24, x: 0, y: 16)
@@ -158,7 +158,7 @@ private struct MissionHeroCard: View {
         case .onGoal: return "🚀"
         case .maybe: return "🧭"
         case .offGoal: return "🛟"
-        case .unknown: return "✨"
+        case .unknown: return "🧭"
         }
     }
 
@@ -197,7 +197,7 @@ private struct PermissionStatusBanner: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Unlock screen scouting")
                     .font(.headline)
-                Text("Enable Screen Recording so your local model can understand the quest board.")
+                Text("Enable Screen Recording so Scout can judge activity locally. Screenshots are discarded after classification.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -215,7 +215,7 @@ private struct PermissionStatusBanner: View {
             }
         }
         .padding(14)
-        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -252,17 +252,17 @@ private struct FocusRingCard: View {
             .frame(width: 138, height: 138)
         }
         .padding(18)
-        .frame(width: 210, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(minHeight: 200, alignment: .topLeading)
-        .background(Color.green.opacity(0.11), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(Color.green.opacity(0.11), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color.green.opacity(0.18), lineWidth: 1)
         }
     }
 
     private var syncBadge: String {
-        model.stats.focusRatio >= 0.7 ? "Combo!" : "Building"
+        model.stats.focusRatio >= 0.7 ? "Steady" : "Building"
     }
 }
 
@@ -298,9 +298,9 @@ private struct MetricTile: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, minHeight: 200, alignment: .topLeading)
-        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(tint.opacity(0.16), lineWidth: 1)
         }
     }
@@ -324,7 +324,7 @@ private struct TimelinePanel: View {
                 ContentUnavailableView(
                     "No discoveries yet",
                     systemImage: "map",
-                    description: Text("Begin the quest or run Scout Now to start filling the log.")
+                    description: Text("Begin Quest or run Scout Now. The log stays quiet until there is real activity to show.")
                 )
                 .frame(minHeight: 260)
             } else {
@@ -335,9 +335,9 @@ private struct TimelinePanel: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(.white.opacity(0.18), lineWidth: 1)
         }
     }
@@ -360,7 +360,7 @@ private struct ActivityObservationRow: View {
                 Text(activityTitle)
                     .font(.headline)
                     .lineLimit(1)
-                Text("\(sample.appName) · \(Int(sample.confidence * 100))% confidence · \(DisplayFormatters.time(sample.timestamp))")
+                Text("Scout checked \(sample.appName) at \(DisplayFormatters.time(sample.timestamp))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -377,7 +377,7 @@ private struct ActivityObservationRow: View {
             }
         }
         .padding(12)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 
     private var activityTitle: String {
@@ -403,8 +403,9 @@ private struct MissionInsightPanel: View {
                 Text("Quest Board")
                     .font(.title3.bold())
                 Spacer()
-                Text("🎮")
-                    .font(.title2)
+                Label("Compass", systemImage: "location.north.line.fill")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
             }
 
             if let goal = model.selectedGoal {
@@ -416,16 +417,17 @@ private struct MissionInsightPanel: View {
                 ContentUnavailableView(
                     "No quest selected",
                     systemImage: "scope",
-                    description: Text("Choose or create a mission to start tracking activity.")
+                    description: Text("Choose or create a mission. Scout waits until there is a clear quest.")
                 )
                 .frame(minHeight: 260)
             }
         }
         .padding(18)
         .frame(width: 380, alignment: .topLeading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(.white.opacity(0.18), lineWidth: 1)
         }
     }
@@ -503,9 +505,9 @@ private struct DriftStatusCard: View {
         case .mixed:
             return "Gathering clues before judging this work window."
         case .drifting:
-            return "Your compass is wobbling. A comeback quest may be needed soon."
+            return "Compass wobbling. Make one clear comeback move, then check again."
         case .unknown:
-            return "The scout needs model or permission setup before it can judge this window."
+            return "Scout needs model or permission setup before it can judge this window."
         }
     }
 }
@@ -548,7 +550,7 @@ private struct QuestCard: View {
         case .drifting:
             return "Comeback challenge: return to one concrete step for \(goal.title), then Scout Now."
         case .unknown:
-            return "Setup quest: finish model and permission setup so the scout can read the board."
+            return "Setup quest: finish model and permission setup so Scout can read the board."
         case .noSamples:
             return "Start tiny: do one focused step, then let the scout check in."
         case .onTrack:
@@ -582,9 +584,9 @@ private struct PlayfulInfoCard<Content: View>: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(tint.opacity(0.12), lineWidth: 1)
         }
     }
