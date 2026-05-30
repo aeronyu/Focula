@@ -34,16 +34,13 @@ ActivitySample.activitySummary / activityCategory / focusState
   -> DashboardCopy.activityLogEntries(from:)
   -> setup/unknown rows coalesced by category
   -> ActivityObservationRow
-  -> Adventure Log
+  -> Activity Log
 
 Recent ActivitySample window
-  -> AppModel.activityWindowSummary
-  -> DriftStatusCard
-  -> Compass message
-  -> QuestCard next step
+  -> Dashboard metric cards
 ```
 
-`AppModel.reloadFromStore()` refreshes `activityWindowSummary` with `ActivityWindowAnalyzer`; SwiftUI views read that published summary instead of recomputing drift. The dashboard should present human-readable mission insight and should not expose raw snake_case classifier categories as primary UI.
+`AppModel.reloadFromStore()` refreshes `activityWindowSummary` with `ActivityWindowAnalyzer`; SwiftUI views read that published summary instead of recomputing drift. The dashboard should present human-readable activity summaries and should not expose raw snake_case classifier categories as primary UI.
 
 ## Built-in model data flow
 
@@ -64,7 +61,7 @@ Screen classification with built-in runtime
   -> BuiltInRuntimeController.ensureRunning(...)
   -> builtin_gemma_sidecar.py
   -> BuiltInGemmaClient.classify(...)
-  -> JSON VisionClassifierResult
+  -> JSON VisionClassifierResult with short local activitySummary when context is clear
 ```
 
 ## External provider data flow
@@ -106,4 +103,4 @@ Goal
   -> goals table
 ```
 
-Only metadata should flow into SQLite. Short activity summaries flow into SQLite only when the user enables `AppSettings.persistActivitySummaries`; `ActivitySummaryRedactor` removes obvious sensitive fragments before persistence.
+Only metadata should flow into SQLite. Short activity summaries are enabled by default for local-first useful logs and can be disabled with `AppSettings.persistActivitySummaries`; `ActivitySummaryRedactor` removes obvious sensitive fragments before persistence.

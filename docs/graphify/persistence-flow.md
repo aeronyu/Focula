@@ -44,7 +44,7 @@ Stores classification metadata only:
 - goal_id
 - focus_state
 - activity_category
-- activity_summary, nullable and only populated after user opt-in to safe summary storage
+- activity_summary, nullable and populated only when safe summary storage is enabled
 - confidence
 - duration_seconds
 - nudge_shown
@@ -53,7 +53,7 @@ Stores classification metadata only:
 
 Stores encoded `AppSettings`, including model/runtime configuration.
 
-`AppSettings.persistActivitySummaries` controls whether safe activity summaries are persisted. Before `activity_summary` is saved, `AppModel` runs the model-provided summary through `ActivitySummaryRedactor`.
+`AppSettings.persistActivitySummaries` controls whether safe activity summaries are persisted. It defaults on for useful local activity logs, and users can turn it off in Settings. Before `activity_summary` is saved, `AppModel` runs the model-provided summary through `ActivitySummaryRedactor`.
 
 ## Important functions
 

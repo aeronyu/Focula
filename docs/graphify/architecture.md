@@ -67,13 +67,13 @@ SettingsView
 - settings
 - activity sample metadata
 - focus state/category/confidence/duration/nudge flags
-- optional redacted activity summaries after explicit user opt-in
+- optional redacted activity summaries when summary storage is enabled
 
 It should not persist screenshot bytes, OCR text, visible text, model prompts, or image base64.
 
 ## UI surfaces
 
-- `DashboardView`: mission status, metrics, useful recent activity, coalesced setup/unknown log rows, focus window, recent alignment, and next-step guidance.
+- `DashboardView`: compact mission status, metrics, useful recent activity, and coalesced setup/unknown log rows.
 - `AppModel.activityWindowSummary`: shared rolling drift summary used by nudges and dashboard presentation.
 - `GoalListView`: mission list, active mission selection, and focused mission editor for intent, schedule, target, and scout hints.
 - `MenuBarContentView`: quick status and controls.

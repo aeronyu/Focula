@@ -34,6 +34,25 @@ public struct VisionClassifierResult: Codable, Equatable, Sendable {
             nudgeSuggested: false
         )
     }
+
+    public func sanitizedForActivityLog() -> VisionClassifierResult {
+        var copy = self
+        copy.activityCategory = copy.activityCategory
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: #"[^a-zA-Z0-9_]+"#, with: "_", options: .regularExpression)
+            .lowercased()
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        if copy.activityCategory.isEmpty {
+            copy.activityCategory = "unknown"
+        }
+        copy.activitySummary = ActivitySummaryRedactor.redact(copy.activitySummary)
+        copy.evidenceCodes = Array(copy.evidenceCodes
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .prefix(6))
+        copy.confidence = min(max(copy.confidence, 0), 1)
+        return copy
+    }
 }
 
 public protocol VisionClassifying {
@@ -109,7 +128,7 @@ public final class LocalVisionClient: VisionClassifying {
         Off-goal examples: \(goal.offGoalExamples.joined(separator: " | "))
         Current app: \(appName)
         Bundle id: \(bundleIdentifier ?? "unknown")
-        Activity summary must be under 90 characters, generic, and must not quote visible text, OCR, URLs, emails, names, or document contents. Use null if unsure. Use evidence codes only.
+        Always write activitySummary when the image gives enough context. Make it a short verb phrase under 72 characters, like "Watching a recorded lecture on WhatsApp" or "Practicing coding questions on LeetCode". Mention safe app or site names when they clarify the activity. Do not quote visible text, URLs, emails, chat participants, document titles, private names, or message contents. Use null only when the activity is unclear. Use evidence codes only.
         """
 
         let body: [String: Any] = [
@@ -150,6 +169,7 @@ public final class LocalVisionClient: VisionClassifying {
         }
 
         return try JSONDecoder().decode(VisionClassifierResult.self, from: contentData)
+            .sanitizedForActivityLog()
     }
 }
 
@@ -181,8 +201,8 @@ public enum ActivitySummaryRedactor {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !cleaned.isEmpty else { return nil }
-        if cleaned.count > 120 {
-            let index = cleaned.index(cleaned.startIndex, offsetBy: 120)
+        if cleaned.count > 90 {
+            let index = cleaned.index(cleaned.startIndex, offsetBy: 90)
             cleaned = String(cleaned[..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return cleaned

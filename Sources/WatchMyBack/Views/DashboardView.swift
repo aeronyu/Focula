@@ -16,17 +16,7 @@ struct DashboardView: View {
                     MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .purple)
                 }
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 16) {
-                        TimelinePanel()
-                        MissionInsightPanel()
-                    }
-
-                    VStack(alignment: .leading, spacing: 16) {
-                        TimelinePanel()
-                        MissionInsightPanel()
-                    }
-                }
+                TimelinePanel()
             }
             .padding(24)
         }
@@ -60,9 +50,10 @@ struct DashboardView: View {
     }
 
     private var metricColumns: [GridItem] {
-        [
-            GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 14, alignment: .top)
-        ]
+        Array(
+            repeating: GridItem(.flexible(minimum: 150), spacing: 12, alignment: .top),
+            count: 4
+        )
     }
 
     private var dashboardBackground: Color {
@@ -74,16 +65,16 @@ private struct MissionHeroCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 16) {
                 ZStack {
                     Circle()
                         .fill(.white.opacity(0.26))
                     Text(heroEmoji)
-                        .font(.system(size: 48))
+                        .font(.system(size: 34))
                 }
-                .frame(width: 82, height: 82)
-                .shadow(color: Color.purple.opacity(0.18), radius: 18, x: 0, y: 10)
+                .frame(width: 64, height: 64)
+                .shadow(color: Color.purple.opacity(0.14), radius: 14, x: 0, y: 8)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Today’s Quest")
@@ -92,29 +83,32 @@ private struct MissionHeroCard: View {
                         .tracking(1.2)
                         .foregroundStyle(.secondary)
                     Text(model.selectedGoal?.title ?? "Choose your next quest")
-                        .font(.system(size: 36, weight: .heavy, design: .rounded))
-                        .lineLimit(2)
+                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                     Text(model.statusMessage)
-                        .font(.headline)
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
 
                 Spacer()
 
-                VStack(alignment: .trailing, spacing: 10) {
+                VStack(alignment: .trailing, spacing: 8) {
                     Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
-                        .font(.headline)
+                        .font(.callout.bold())
                         .foregroundStyle(model.lastFocusState.tint)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                         .background(.white.opacity(0.32), in: Capsule())
 
-                    Text("Level \(missionLevel)")
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
-                    Text("\(nextLevelXP) XP to next level")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Text("Level \(missionLevel)")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                        Text("\(nextLevelXP) XP left")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -135,13 +129,13 @@ private struct MissionHeroCard: View {
                 PermissionStatusBanner()
             }
         }
-        .padding(24)
+        .padding(20)
         .background(heroBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(.white.opacity(0.22), lineWidth: 1)
         }
-        .shadow(color: Color.purple.opacity(0.18), radius: 24, x: 0, y: 16)
+        .shadow(color: Color.purple.opacity(0.12), radius: 18, x: 0, y: 12)
     }
 
     private var heroEmoji: String {
@@ -210,7 +204,7 @@ private struct FocusRingCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Quest Sync")
                     .font(.headline)
@@ -223,24 +217,24 @@ private struct FocusRingCard: View {
             }
             ZStack {
                 Circle()
-                    .stroke(.white.opacity(0.45), lineWidth: 16)
+                    .stroke(.white.opacity(0.45), lineWidth: 12)
                 Circle()
                     .trim(from: 0, to: min(model.stats.focusRatio, 1))
-                    .stroke(.green, style: StrokeStyle(lineWidth: 16, lineCap: .round))
+                    .stroke(.green, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 4) {
                     Text(DisplayFormatters.percent(model.stats.focusRatio))
-                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .font(.system(size: 28, weight: .heavy, design: .rounded))
                     Text("aligned")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 138, height: 138)
+            .frame(width: 118, height: 118)
         }
-        .padding(18)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(minHeight: 200, alignment: .topLeading)
+        .frame(minHeight: 170, alignment: .topLeading)
         .background(Color.green.opacity(0.11), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -261,7 +255,7 @@ private struct MetricTile: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             ZStack {
                 Circle()
                     .fill(tint.opacity(0.15))
@@ -269,10 +263,10 @@ private struct MetricTile: View {
                     .font(.title2)
                     .foregroundStyle(tint)
             }
-            .frame(width: 42, height: 42)
+            .frame(width: 38, height: 38)
 
             Text(value)
-                .font(.system(size: 32, weight: .heavy, design: .rounded))
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             VStack(alignment: .leading, spacing: 2) {
@@ -283,8 +277,8 @@ private struct MetricTile: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, minHeight: 200, alignment: .topLeading)
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
         .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -299,19 +293,19 @@ private struct TimelinePanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Adventure Log")
+                Text("Activity Log")
                     .font(.title3.bold())
                 Spacer()
-                Text("latest useful events")
+                Text(model.settings.persistActivitySummaries ? "local summaries" : "summaries off")
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
             }
 
             if model.recentSamples.isEmpty {
                 ContentUnavailableView(
-                    "No discoveries yet",
+                    "No activity yet",
                     systemImage: "map",
-                    description: Text("Begin Quest or run Scout Now. The log stays quiet until there is real activity to show.")
+                    description: Text("Begin Quest or run Scout Now. Local summaries appear here after Scout checks your screen.")
                 )
                 .frame(minHeight: 260)
             } else {
@@ -369,194 +363,6 @@ private struct ActivityObservationRow: View {
         }
         .padding(12)
         .background(entry.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-}
-
-private struct MissionInsightPanel: View {
-    @EnvironmentObject private var model: AppModel
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                Text("Quest Board")
-                    .font(.title3.bold())
-                Spacer()
-                Label("Compass", systemImage: "location.north.line.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-            }
-
-            if let goal = model.selectedGoal {
-                MissionIntentCard(goal: goal)
-                FocusWindowCard(goal: goal)
-                DriftStatusCard(summary: model.activityWindowSummary)
-                QuestCard(goal: goal, summary: model.activityWindowSummary)
-            } else {
-                ContentUnavailableView(
-                    "No quest selected",
-                    systemImage: "scope",
-                    description: Text("Choose or create a mission. Scout waits until there is a clear quest.")
-                )
-                .frame(minHeight: 260)
-            }
-        }
-        .padding(18)
-        .frame(width: 380, alignment: .topLeading)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
-        }
-    }
-}
-
-private struct MissionIntentCard: View {
-    let goal: Goal
-
-    var body: some View {
-        PlayfulInfoCard(icon: "scope", title: "Main Quest", tint: .purple) {
-            Text(goal.description)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-private struct FocusWindowCard: View {
-    let goal: Goal
-
-    var body: some View {
-        PlayfulInfoCard(icon: "calendar.badge.clock", title: "Quest Hours", tint: .blue) {
-            Text(DashboardCopy.scheduleSummary(for: goal.schedule))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private struct DriftStatusCard: View {
-    let summary: ActivityWindowSummary
-
-    var body: some View {
-        PlayfulInfoCard(icon: statusIcon, title: "Compass", tint: statusTint) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(statusText)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                ProgressView(value: summary.alignmentRatio)
-                    .tint(statusTint)
-            }
-        }
-    }
-
-    private var statusIcon: String {
-        switch summary.state {
-        case .noSamples: return "map"
-        case .onTrack: return "checkmark.seal.fill"
-        case .mixed: return "gauge.medium"
-        case .drifting: return "exclamationmark.triangle.fill"
-        case .unknown: return "questionmark.circle.fill"
-        }
-    }
-
-    private var statusTint: Color {
-        switch summary.state {
-        case .noSamples, .mixed, .unknown: return .purple
-        case .onTrack: return .green
-        case .drifting: return .orange
-        }
-    }
-
-    private var statusText: String {
-        switch summary.state {
-        case .noSamples:
-            return "No scouts yet. The compass wakes up after a few check-ins."
-        case .onTrack:
-            return "Nice! Your recent activity is mostly on quest."
-        case .mixed:
-            return "Gathering clues before judging this work window."
-        case .drifting:
-            return "Compass wobbling. Make one clear comeback move, then check again."
-        case .unknown:
-            return "Scout needs model or permission setup before it can judge this window."
-        }
-    }
-}
-
-private struct QuestCard: View {
-    let goal: Goal
-    let summary: ActivityWindowSummary
-
-    var body: some View {
-        PlayfulInfoCard(icon: "star.fill", title: "Mini Quest", tint: .yellow) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(nextStep)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: 6) {
-                    ForEach(0..<3, id: \.self) { index in
-                        Image(systemName: index < filledStars ? "star.fill" : "star")
-                            .foregroundStyle(.yellow)
-                    }
-                    Text("streak sparks")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    private var filledStars: Int {
-        min(3, summary.alignedCount)
-    }
-
-    private var nextStep: String {
-        switch summary.state {
-        case .drifting:
-            return "Comeback challenge: return to one concrete step for \(goal.title), then Scout Now."
-        case .unknown:
-            return "Setup quest: finish model and permission setup so Scout can read the board."
-        case .noSamples:
-            return "Start tiny: do one focused step, then let the scout check in."
-        case .onTrack:
-            return "Keep the combo alive: one focused block, one tiny win, then let the scout check in."
-        case .mixed:
-            return "Pick the next obvious action for \(goal.title) and keep the compass steady."
-        }
-    }
-}
-
-private struct PlayfulInfoCard<Content: View>: View {
-    let icon: String
-    let title: String
-    let tint: Color
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(tint.opacity(0.16))
-                    Image(systemName: icon)
-                        .foregroundStyle(tint)
-                }
-                .frame(width: 34, height: 34)
-                Text(title)
-                    .font(.headline)
-            }
-            content
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(tint.opacity(0.12), lineWidth: 1)
-        }
     }
 }
 
@@ -702,11 +508,6 @@ private enum DashboardCopy {
         }
     }
 
-    static func scheduleSummary(for schedule: FocusSchedule) -> String {
-        let weekdays = schedule.weekdays.sorted().map(weekdayName).joined(separator: ", ")
-        return "\(weekdays), \(timeString(schedule.startMinute))–\(timeString(schedule.endMinute))"
-    }
-
     private static func humanize(_ raw: String, fallback: String) -> String {
         let cleaned = raw
             .split(separator: "_")
@@ -718,27 +519,4 @@ private enum DashboardCopy {
         return cleaned.prefix(1).uppercased() + cleaned.dropFirst()
     }
 
-    private static func weekdayName(_ weekday: Int) -> String {
-        switch weekday {
-        case 1: return "Sun"
-        case 2: return "Mon"
-        case 3: return "Tue"
-        case 4: return "Wed"
-        case 5: return "Thu"
-        case 6: return "Fri"
-        case 7: return "Sat"
-        default: return "Day \(weekday)"
-        }
-    }
-
-    private static func timeString(_ minuteOfDay: Int) -> String {
-        let hour = minuteOfDay / 60
-        let minute = minuteOfDay % 60
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        let calendar = Calendar.current
-        let date = calendar.date(from: components) ?? Date()
-        return date.formatted(date: .omitted, time: .shortened)
-    }
 }

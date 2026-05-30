@@ -32,7 +32,7 @@ Allowed persisted data:
 - confidence
 - duration seconds
 - nudge shown flag
-- redacted activity summary, only when the user enables summary storage
+- redacted activity summary, only when summary storage is enabled
 - user model/settings metadata
 
 ## Primary path to audit
@@ -43,7 +43,7 @@ ScreenCaptureKitSnapshotProvider.captureJPEGData
   -> FrameDeduplicator.shouldClassify
   -> BuiltInGemmaClient or LocalVisionClient
   -> VisionClassifierResult
-  -> ActivitySample metadata, with optional redacted summary gated by AppSettings.persistActivitySummaries
+  -> ActivitySample metadata, with redacted summary gated by AppSettings.persistActivitySummaries
   -> DatabaseStore.saveActivitySample
 ```
 

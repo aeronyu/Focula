@@ -3,6 +3,7 @@ import argparse
 import base64
 import io
 import json
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODEL = None
@@ -35,7 +36,20 @@ On-goal examples: {" | ".join(goal.get("onGoalExamples", []))}
 Off-goal examples: {" | ".join(goal.get("offGoalExamples", []))}
 Current app: {payload.get("appName", "unknown")}
 Bundle id: {payload.get("bundleIdentifier") or "unknown"}
-Activity summary must be under 90 characters, generic, and must not quote visible text, OCR, URLs, emails, names, or document contents. Use null if unsure. Use evidence codes only."""
+Always write activitySummary when the image gives enough context. Make it a short verb phrase under 72 characters, like "Watching a recorded lecture on WhatsApp" or "Practicing coding questions on LeetCode". Mention safe app or site names when they clarify the activity. Do not quote visible text, URLs, emails, chat participants, document titles, private names, or message contents. Use null only when the activity is unclear. Use evidence codes only."""
+
+
+def clean_summary(value):
+    if not isinstance(value, str):
+        return None
+    cleaned = re.sub(r"\s+", " ", value).strip()
+    if not cleaned:
+        return None
+    cleaned = re.sub(r"https?://\S+|www\.\S+", "[link]", cleaned, flags=re.I)
+    cleaned = re.sub(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", "[email]", cleaned, flags=re.I)
+    cleaned = re.sub(r"`[^`]*`|\"[^\"]*\"|'[^']*'", "[text]", cleaned)
+    cleaned = re.sub(r"\b\d{4,}\b", "[number]", cleaned)
+    return cleaned[:90].strip()
 
 
 def load_model():
@@ -70,7 +84,7 @@ def classify(payload):
         return {
             "focusState": parsed.get("focusState", "unknown"),
             "activityCategory": parsed.get("activityCategory", "unknown"),
-            "activitySummary": parsed.get("activitySummary"),
+            "activitySummary": clean_summary(parsed.get("activitySummary")),
             "confidence": float(parsed.get("confidence", 0.0)),
             "evidenceCodes": [str(code) for code in parsed.get("evidenceCodes", [])][:6],
             "nudgeSuggested": bool(parsed.get("nudgeSuggested", False)),

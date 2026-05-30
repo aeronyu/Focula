@@ -469,7 +469,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus: ModelRuntimeStatus = .builtInDefault(),
         modelTelemetry: ModelTelemetry = ModelTelemetry(),
         sampleIntervalSeconds: TimeInterval = 60,
-        persistActivitySummaries: Bool = false,
+        persistActivitySummaries: Bool = true,
         paused: Bool = true
     ) {
         self.endpoint = endpoint
@@ -511,7 +511,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus = decodedStatus
         modelTelemetry = try container.decodeIfPresent(ModelTelemetry.self, forKey: .modelTelemetry) ?? ModelTelemetry()
         sampleIntervalSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .sampleIntervalSeconds) ?? 60
-        persistActivitySummaries = try container.decodeIfPresent(Bool.self, forKey: .persistActivitySummaries) ?? false
+        persistActivitySummaries = try container.decodeIfPresent(Bool.self, forKey: .persistActivitySummaries) ?? true
         paused = try container.decodeIfPresent(Bool.self, forKey: .paused) ?? true
     }
 }

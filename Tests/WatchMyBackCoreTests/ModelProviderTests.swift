@@ -8,7 +8,7 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertEqual(settings.modelSelection.provider, .builtInGemma)
         XCTAssertEqual(settings.modelSelection.modelID, BuiltInModelCatalog.defaultModel.id)
         XCTAssertFalse(settings.modelSelection.cloudClassificationAllowed)
-        XCTAssertFalse(settings.persistActivitySummaries)
+        XCTAssertTrue(settings.persistActivitySummaries)
         XCTAssertEqual(settings.builtInModelStatus.installState, .missing)
     }
 
@@ -57,6 +57,7 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertEqual(decoded.model, BuiltInModelCatalog.defaultModel.id)
         XCTAssertEqual(decoded.modelSelection.modelID, BuiltInModelCatalog.defaultModel.id)
         XCTAssertEqual(decoded.builtInModelStatus.modelID, BuiltInModelCatalog.defaultModel.id)
+        XCTAssertTrue(decoded.persistActivitySummaries)
     }
 
     func testProviderSwitchPersistsInSettingsBlob() throws {

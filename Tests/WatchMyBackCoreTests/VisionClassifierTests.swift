@@ -42,4 +42,20 @@ final class VisionClassifierTests: XCTestCase {
 
         XCTAssertEqual(redacted, "Reviewing [text] at [link] with [email] and ticket [number]")
     }
+
+    func testClassifierResultSanitizesSummaryForActivityLog() {
+        let result = VisionClassifierResult(
+            focusState: .onGoal,
+            activityCategory: "Coding Practice!",
+            activitySummary: "Practicing coding questions on LeetCode with ticket 987654",
+            confidence: 2,
+            evidenceCodes: [" goal_match ", "", "screen", "extra1", "extra2", "extra3", "extra4"],
+            nudgeSuggested: false
+        ).sanitizedForActivityLog()
+
+        XCTAssertEqual(result.activityCategory, "coding_practice")
+        XCTAssertEqual(result.activitySummary, "Practicing coding questions on LeetCode with ticket [number]")
+        XCTAssertEqual(result.confidence, 1)
+        XCTAssertEqual(result.evidenceCodes, ["goal_match", "screen", "extra1", "extra2", "extra3", "extra4"])
+    }
 }

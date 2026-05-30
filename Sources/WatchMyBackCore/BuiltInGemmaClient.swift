@@ -59,6 +59,7 @@ public final class BuiltInGemmaClient: VisionClassifying {
 
     public static func parseSidecarResponse(_ data: Data) throws -> VisionClassifierResult {
         try JSONDecoder().decode(VisionClassifierResult.self, from: data)
+            .sanitizedForActivityLog()
     }
 
     public static func notReadyFallback() -> VisionClassifierResult {
