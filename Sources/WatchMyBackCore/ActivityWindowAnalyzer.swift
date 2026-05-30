@@ -67,6 +67,26 @@ public struct ActivityWindowSummary: Equatable, Sendable {
     public var isSustainedDrift: Bool {
         state == .drifting
     }
+
+    public static func empty(
+        windowDuration: TimeInterval = 20 * 60,
+        driftThreshold: TimeInterval = 20 * 60
+    ) -> ActivityWindowSummary {
+        ActivityWindowSummary(
+            state: .noSamples,
+            sampleCount: 0,
+            alignedCount: 0,
+            maybeCount: 0,
+            offGoalCount: 0,
+            unknownCount: 0,
+            alignedSeconds: 0,
+            maybeSeconds: 0,
+            offGoalSeconds: 0,
+            unknownSeconds: 0,
+            windowDuration: windowDuration,
+            driftThreshold: driftThreshold
+        )
+    }
 }
 
 public struct ActivityWindowAnalyzer {
@@ -92,20 +112,7 @@ public struct ActivityWindowAnalyzer {
         let recent = samples.filter { $0.timestamp >= cutoff && $0.timestamp <= now }
 
         guard !recent.isEmpty else {
-            return ActivityWindowSummary(
-                state: .noSamples,
-                sampleCount: 0,
-                alignedCount: 0,
-                maybeCount: 0,
-                offGoalCount: 0,
-                unknownCount: 0,
-                alignedSeconds: 0,
-                maybeSeconds: 0,
-                offGoalSeconds: 0,
-                unknownSeconds: 0,
-                windowDuration: windowDuration,
-                driftThreshold: driftThreshold
-            )
+            return .empty(windowDuration: windowDuration, driftThreshold: driftThreshold)
         }
 
         var alignedCount = 0
@@ -160,5 +167,13 @@ public struct ActivityWindowAnalyzer {
             windowDuration: windowDuration,
             driftThreshold: driftThreshold
         )
+    }
+
+    public func summarize(
+        samples: [ActivitySample],
+        including sample: ActivitySample,
+        now: Date = Date()
+    ) -> ActivityWindowSummary {
+        summarize(samples: [sample] + samples, now: now)
     }
 }

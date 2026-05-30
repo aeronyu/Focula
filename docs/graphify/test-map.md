@@ -16,6 +16,9 @@ This page maps important production code paths to test coverage. Refresh it afte
   - cloud opt-in blocking
   - runtime detector status behavior
 - Other core tests should cover `Models.swift`, `DatabaseStore.swift`, and `LocalVisionClient.swift` parsing/serialization behavior.
+- `Tests/WatchMyBackCoreTests/ActivityWindowAnalyzerTests.swift`
+  - rolling alignment/drift summaries
+  - candidate sample inclusion before persistence
 
 ## High-value test targets
 
@@ -24,6 +27,7 @@ This page maps important production code paths to test coverage. Refresh it afte
 - `FocusSchedule.contains(_:calendar:)`
 - `DailyStats.focusRatio`
 - `StreakCalculator.dayCounts(stats:targetMinutes:)`
+- `ActivityWindowAnalyzer.summarize(samples:including:now:)`
 
 ### Model routing
 

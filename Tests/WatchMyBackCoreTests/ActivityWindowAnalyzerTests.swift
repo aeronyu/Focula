@@ -81,6 +81,26 @@ final class ActivityWindowAnalyzerTests: XCTestCase {
         XCTAssertEqual(summary.offGoalSeconds, 0)
     }
 
+    func testSummarizeIncludingCandidateSampleUsesSameRollingWindow() {
+        let now = Date(timeIntervalSince1970: 3_000)
+        let analyzer = ActivityWindowAnalyzer(
+            windowDuration: 20 * 60,
+            driftThreshold: 20 * 60,
+            minimumSamplesForDrift: 2
+        )
+        let storedSamples = [
+            sample(at: now.addingTimeInterval(-2_000), state: .offGoal, duration: 600),
+            sample(at: now.addingTimeInterval(-500), state: .offGoal, duration: 600)
+        ]
+        let candidate = sample(at: now, state: .offGoal, duration: 600)
+
+        let summary = analyzer.summarize(samples: storedSamples, including: candidate, now: now)
+
+        XCTAssertEqual(summary.sampleCount, 2)
+        XCTAssertEqual(summary.offGoalSeconds, 1_200)
+        XCTAssertTrue(summary.isSustainedDrift)
+    }
+
     private func sample(
         at date: Date,
         state: FocusState,

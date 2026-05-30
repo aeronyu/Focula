@@ -398,8 +398,8 @@ private struct MissionInsightPanel: View {
             if let goal = model.selectedGoal {
                 MissionIntentCard(goal: goal)
                 FocusWindowCard(goal: goal)
-                DriftStatusCard(samples: model.recentSamples)
-                QuestCard(goal: goal, samples: model.recentSamples)
+                DriftStatusCard(summary: model.activityWindowSummary)
+                QuestCard(goal: goal, summary: model.activityWindowSummary)
             } else {
                 ContentUnavailableView(
                     "No quest selected",
@@ -446,8 +446,7 @@ private struct FocusWindowCard: View {
 }
 
 private struct DriftStatusCard: View {
-    let samples: [ActivitySample]
-    private let analyzer = ActivityWindowAnalyzer()
+    let summary: ActivityWindowSummary
 
     var body: some View {
         PlayfulInfoCard(icon: statusIcon, title: "Compass", tint: statusTint) {
@@ -459,10 +458,6 @@ private struct DriftStatusCard: View {
                     .tint(statusTint)
             }
         }
-    }
-
-    private var summary: ActivityWindowSummary {
-        analyzer.summarize(samples: samples)
     }
 
     private var statusIcon: String {
@@ -501,8 +496,7 @@ private struct DriftStatusCard: View {
 
 private struct QuestCard: View {
     let goal: Goal
-    let samples: [ActivitySample]
-    private let analyzer = ActivityWindowAnalyzer()
+    let summary: ActivityWindowSummary
 
     var body: some View {
         PlayfulInfoCard(icon: "star.fill", title: "Mini Quest", tint: .yellow) {
@@ -522,10 +516,6 @@ private struct QuestCard: View {
                 }
             }
         }
-    }
-
-    private var summary: ActivityWindowSummary {
-        analyzer.summarize(samples: samples)
     }
 
     private var filledStars: Int {

@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var goals: [Goal] = []
     @Published var selectedGoalID: UUID?
     @Published private(set) var recentSamples: [ActivitySample] = []
+    @Published private(set) var activityWindowSummary = ActivityWindowSummary.empty()
     @Published private(set) var stats = DailyStats(
         date: Date(),
         focusSeconds: 0,
@@ -370,7 +371,7 @@ final class AppModel: ObservableObject {
             nudgeShown: false
         )
 
-        let windowSummary = activityWindowAnalyzer.summarize(samples: [sample] + recentSamples, now: now)
+        let windowSummary = activityWindowAnalyzer.summarize(samples: recentSamples, including: sample, now: now)
         let shouldNudge = windowSummary.isSustainedDrift && nudgeCoordinator.shouldNudge(
             focusState: .offGoal,
             schedule: goal.schedule,
@@ -386,6 +387,7 @@ final class AppModel: ObservableObject {
 
         do {
             try store?.saveActivitySample(sample)
+            activityWindowSummary = windowSummary
             lastFocusState = result.focusState
             statusMessage = statusText(for: sample, goal: goal, windowSummary: windowSummary)
             reloadFromStore()
@@ -450,6 +452,7 @@ final class AppModel: ObservableObject {
                 goals = fetchedGoals
             }
             recentSamples = try store?.fetchRecentSamples(limit: 30) ?? []
+            activityWindowSummary = activityWindowAnalyzer.summarize(samples: recentSamples)
             stats = try store?.dailyStats(for: Date()) ?? stats
             lastFocusState = recentSamples.first?.focusState ?? lastFocusState
         } catch {

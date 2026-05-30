@@ -17,7 +17,7 @@ Timer or manual Sample Now
   -> VisionClassifying.classify(...)
   -> VisionClassifierResult
   -> ActivitySample
-  -> ActivityWindowAnalyzer.summarize(samples:now:)
+  -> ActivityWindowAnalyzer.summarize(samples:including:now:)
   -> ActivityWindowSummary.isSustainedDrift
   -> NudgeCoordinator.shouldNudge(...)
   -> DatabaseStore.saveActivitySample(...)
@@ -36,13 +36,13 @@ ActivitySample.activitySummary / activityCategory / focusState
   -> Adventure Log
 
 Recent ActivitySample window
-  -> ActivityWindowAnalyzer.summarize(samples:)
+  -> AppModel.activityWindowSummary
   -> DriftStatusCard
   -> Compass message
   -> QuestCard next step
 ```
 
-The dashboard should present human-readable mission insight and should not expose raw snake_case classifier categories as primary UI.
+`AppModel.reloadFromStore()` refreshes `activityWindowSummary` with `ActivityWindowAnalyzer`; SwiftUI views read that published summary instead of recomputing drift. The dashboard should present human-readable mission insight and should not expose raw snake_case classifier categories as primary UI.
 
 ## Built-in model data flow
 
