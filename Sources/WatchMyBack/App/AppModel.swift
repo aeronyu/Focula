@@ -323,6 +323,71 @@ final class AppModel: ObservableObject {
         saveSettings()
     }
 
+    func saveMission(_ mission: Goal) {
+        var mission = mission
+        mission.title = mission.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        mission.description = mission.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !mission.title.isEmpty else {
+            lastError = "Mission needs a title."
+            return
+        }
+
+        if goals.isEmpty || mission.isActive {
+            mission.isActive = true
+        } else if goals.filter({ $0.id != mission.id }).allSatisfy({ !$0.isActive }) {
+            mission.isActive = true
+        }
+
+        if store == nil {
+            if mission.isActive {
+                goals = goals.map { goal in
+                    var goal = goal
+                    if goal.id != mission.id {
+                        goal.isActive = false
+                    }
+                    return goal
+                }
+            }
+
+            if let index = goals.firstIndex(where: { $0.id == mission.id }) {
+                goals[index] = mission
+            } else {
+                goals.append(mission)
+            }
+            goals.sort { lhs, rhs in
+                if lhs.isActive != rhs.isActive {
+                    return lhs.isActive
+                }
+                return lhs.title < rhs.title
+            }
+            selectedGoalID = mission.id
+            statusMessage = "\(mission.title) mission saved."
+            return
+        }
+
+        do {
+            if mission.isActive {
+                for var goal in goals where goal.id != mission.id && goal.isActive {
+                    goal.isActive = false
+                    try store?.saveGoal(goal)
+                }
+            }
+
+            try store?.saveGoal(mission)
+            selectedGoalID = mission.id
+            statusMessage = "\(mission.title) mission saved."
+            reloadFromStore()
+        } catch {
+            lastError = "Could not save mission: \(error.localizedDescription)"
+        }
+    }
+
+    func activateMission(_ mission: Goal) {
+        var mission = mission
+        mission.isActive = true
+        saveMission(mission)
+    }
+
     func togglePaused() {
         settings.paused.toggle()
         saveSettings()

@@ -81,6 +81,11 @@ For `cloudOptIn`, `ModelRouter` returns `CloudOptInBlockedClassifier` until the 
 ## Persistence data flow
 
 ```text
+GoalListView mission editor
+  -> AppModel.saveMission(_:)
+  -> DatabaseStore.saveGoal(_:)
+  -> goals table
+
 ActivitySample
   -> DatabaseStore.saveActivitySample
   -> activity_samples table

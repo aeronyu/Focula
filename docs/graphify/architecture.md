@@ -75,6 +75,6 @@ It should not persist screenshot bytes, OCR text, visible text, model prompts, o
 
 - `DashboardView`: mission status, metrics, human-readable recent activity, focus window, recent alignment, and next-step guidance.
 - `AppModel.activityWindowSummary`: shared rolling drift summary used by nudges and dashboard presentation.
-- `GoalListView`: mission list and tracking status.
+- `GoalListView`: mission list, active mission selection, and focused mission editor for intent, schedule, target, and scout hints.
 - `MenuBarContentView`: quick status and controls.
 - `SettingsView`: model runtime, install/delete confirmations, permissions, provider hookup, and sampling settings.

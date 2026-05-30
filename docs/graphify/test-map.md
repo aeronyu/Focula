@@ -25,6 +25,7 @@ This page maps important production code paths to test coverage. Refresh it afte
 ### Focus schedule and stats
 
 - `FocusSchedule.contains(_:calendar:)`
+- overnight `FocusSchedule` windows
 - `DailyStats.focusRatio`
 - `StreakCalculator.dayCounts(stats:targetMinutes:)`
 - `ActivityWindowAnalyzer.summarize(samples:including:now:)`
