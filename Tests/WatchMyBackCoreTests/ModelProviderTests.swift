@@ -8,6 +8,7 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertEqual(settings.modelSelection.provider, .builtInGemma)
         XCTAssertEqual(settings.modelSelection.modelID, BuiltInModelCatalog.defaultModel.id)
         XCTAssertFalse(settings.modelSelection.cloudClassificationAllowed)
+        XCTAssertFalse(settings.persistActivitySummaries)
         XCTAssertEqual(settings.builtInModelStatus.installState, .missing)
     }
 

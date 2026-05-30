@@ -65,6 +65,7 @@ public final class BuiltInGemmaClient: VisionClassifying {
         VisionClassifierResult(
             focusState: .unknown,
             activityCategory: "built_in_model_not_ready",
+            activitySummary: nil,
             confidence: 0,
             evidenceCodes: ["builtin_gemma_sidecar_unavailable"],
             nudgeSuggested: false

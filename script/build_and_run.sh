@@ -9,7 +9,10 @@ MIN_SYSTEM_VERSION="14.0"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
-APP_CONTENTS="$APP_BUNDLE/Contents"
+STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/watch-my-back.XXXXXX")"
+trap 'rm -rf "$STAGING_DIR"' EXIT
+STAGED_APP_BUNDLE="$STAGING_DIR/$APP_NAME.app"
+APP_CONTENTS="$STAGED_APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
@@ -23,7 +26,7 @@ swift build
 BUILD_DIR="$(swift build --show-bin-path)"
 BUILD_BINARY="$BUILD_DIR/$APP_NAME"
 
-rm -rf "$APP_BUNDLE"
+rm -rf "$APP_BUNDLE" "$STAGED_APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
@@ -74,10 +77,12 @@ fi
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   SIGNING_IDENTITY="-"
 fi
-find "$APP_BUNDLE" -depth -exec xattr -c {} \; >/dev/null 2>&1 || true
-xattr -cr "$APP_BUNDLE" >/dev/null 2>&1 || true
-xattr -c "$APP_BUNDLE" >/dev/null 2>&1 || true
-codesign --force --deep --sign "$SIGNING_IDENTITY" "$APP_BUNDLE" >/dev/null
+find "$STAGED_APP_BUNDLE" -depth -exec xattr -c {} \; >/dev/null 2>&1 || true
+xattr -cr "$STAGED_APP_BUNDLE" >/dev/null 2>&1 || true
+xattr -c "$STAGED_APP_BUNDLE" >/dev/null 2>&1 || true
+codesign --force --deep --sign "$SIGNING_IDENTITY" "$STAGED_APP_BUNDLE" >/dev/null
+mkdir -p "$DIST_DIR"
+/usr/bin/ditto --noextattr --norsrc "$STAGED_APP_BUNDLE" "$APP_BUNDLE"
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"

@@ -14,6 +14,7 @@ def fallback(category="built_in_model_not_ready", evidence="builtin_runtime_erro
     return {
         "focusState": "unknown",
         "activityCategory": category,
+        "activitySummary": None,
         "confidence": 0.0,
         "evidenceCodes": [evidence],
         "nudgeSuggested": False,
@@ -24,7 +25,7 @@ def strict_prompt(payload):
     goal = payload.get("goal", {})
     return f"""Classify this Mac screenshot against the user's active goal.
 Return strict JSON only with this schema:
-{{"focusState":"on_goal|maybe|off_goal|unknown","activityCategory":"short_snake_case","confidence":0.0,"evidenceCodes":["short_code"],"nudgeSuggested":false}}
+{{"focusState":"on_goal|maybe|off_goal|unknown","activityCategory":"short_snake_case","activitySummary":"safe short generic summary or null","confidence":0.0,"evidenceCodes":["short_code"],"nudgeSuggested":false}}
 
 Goal: {goal.get("title", "")}
 Description: {goal.get("description", "")}
@@ -34,7 +35,7 @@ On-goal examples: {" | ".join(goal.get("onGoalExamples", []))}
 Off-goal examples: {" | ".join(goal.get("offGoalExamples", []))}
 Current app: {payload.get("appName", "unknown")}
 Bundle id: {payload.get("bundleIdentifier") or "unknown"}
-Do not quote visible text. Do not include raw OCR. Use evidence codes only."""
+Activity summary must be under 90 characters, generic, and must not quote visible text, OCR, URLs, emails, names, or document contents. Use null if unsure. Use evidence codes only."""
 
 
 def load_model():
@@ -69,6 +70,7 @@ def classify(payload):
         return {
             "focusState": parsed.get("focusState", "unknown"),
             "activityCategory": parsed.get("activityCategory", "unknown"),
+            "activitySummary": parsed.get("activitySummary"),
             "confidence": float(parsed.get("confidence", 0.0)),
             "evidenceCodes": [str(code) for code in parsed.get("evidenceCodes", [])][:6],
             "nudgeSuggested": bool(parsed.get("nudgeSuggested", False)),

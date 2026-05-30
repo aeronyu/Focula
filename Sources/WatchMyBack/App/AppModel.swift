@@ -317,6 +317,11 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func updatePersistActivitySummaries(_ value: Bool) {
+        settings.persistActivitySummaries = value
+        saveSettings()
+    }
+
     func togglePaused() {
         settings.paused.toggle()
         saveSettings()
@@ -357,6 +362,9 @@ final class AppModel: ObservableObject {
             goalID: goal.id,
             focusState: result.focusState,
             activityCategory: result.activityCategory,
+            activitySummary: settings.persistActivitySummaries
+                ? ActivitySummaryRedactor.redact(result.activitySummary)
+                : nil,
             confidence: result.confidence,
             durationSeconds: settings.sampleIntervalSeconds,
             nudgeShown: false

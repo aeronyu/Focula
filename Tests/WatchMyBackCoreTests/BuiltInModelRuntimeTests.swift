@@ -11,13 +11,14 @@ final class BuiltInModelRuntimeTests: XCTestCase {
 
     func testParsesStrictClassifierJSONFromBuiltInSidecar() throws {
         let payload = """
-        {"focusState":"on_goal","activityCategory":"coding","confidence":0.93,"evidenceCodes":["goal_match"],"nudgeSuggested":false}
+        {"focusState":"on_goal","activityCategory":"coding","activitySummary":"Building the app locally","confidence":0.93,"evidenceCodes":["goal_match"],"nudgeSuggested":false}
         """.data(using: .utf8)!
 
         let result = try BuiltInGemmaClient.parseSidecarResponse(payload)
 
         XCTAssertEqual(result.focusState, .onGoal)
         XCTAssertEqual(result.activityCategory, "coding")
+        XCTAssertEqual(result.activitySummary, "Building the app locally")
         XCTAssertEqual(result.confidence, 0.93, accuracy: 0.001)
         XCTAssertEqual(result.evidenceCodes, ["goal_match"])
         XCTAssertFalse(result.nudgeSuggested)

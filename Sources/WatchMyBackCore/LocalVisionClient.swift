@@ -3,6 +3,7 @@ import Foundation
 public struct VisionClassifierResult: Codable, Equatable, Sendable {
     public var focusState: FocusState
     public var activityCategory: String
+    public var activitySummary: String?
     public var confidence: Double
     public var evidenceCodes: [String]
     public var nudgeSuggested: Bool
@@ -10,12 +11,14 @@ public struct VisionClassifierResult: Codable, Equatable, Sendable {
     public init(
         focusState: FocusState,
         activityCategory: String,
+        activitySummary: String? = nil,
         confidence: Double,
         evidenceCodes: [String],
         nudgeSuggested: Bool
     ) {
         self.focusState = focusState
         self.activityCategory = activityCategory
+        self.activitySummary = activitySummary
         self.confidence = confidence
         self.evidenceCodes = evidenceCodes
         self.nudgeSuggested = nudgeSuggested
@@ -25,6 +28,7 @@ public struct VisionClassifierResult: Codable, Equatable, Sendable {
         VisionClassifierResult(
             focusState: .unknown,
             activityCategory: "unknown",
+            activitySummary: nil,
             confidence: 0,
             evidenceCodes: ["classifier_unavailable"],
             nudgeSuggested: false
@@ -95,7 +99,7 @@ public final class LocalVisionClient: VisionClassifying {
         let prompt = """
         Classify this Mac activity for the user's active goal.
         Return strict JSON only. Schema:
-        {"focusState":"on_goal|maybe|off_goal|unknown","activityCategory":"short_snake_case","confidence":0.0,"evidenceCodes":["short_code"],"nudgeSuggested":false}
+        {"focusState":"on_goal|maybe|off_goal|unknown","activityCategory":"short_snake_case","activitySummary":"safe short generic summary or null","confidence":0.0,"evidenceCodes":["short_code"],"nudgeSuggested":false}
 
         Goal: \(goal.title)
         Description: \(goal.description)
@@ -105,7 +109,7 @@ public final class LocalVisionClient: VisionClassifying {
         Off-goal examples: \(goal.offGoalExamples.joined(separator: " | "))
         Current app: \(appName)
         Bundle id: \(bundleIdentifier ?? "unknown")
-        Do not quote or store visible text. Use evidence codes only.
+        Activity summary must be under 90 characters, generic, and must not quote visible text, OCR, URLs, emails, names, or document contents. Use null if unsure. Use evidence codes only.
         """
 
         let body: [String: Any] = [
@@ -146,6 +150,42 @@ public final class LocalVisionClient: VisionClassifying {
         }
 
         return try JSONDecoder().decode(VisionClassifierResult.self, from: contentData)
+    }
+}
+
+public enum ActivitySummaryRedactor {
+    public static func redact(_ value: String?) -> String? {
+        guard var cleaned = value?.trimmingCharacters(in: .whitespacesAndNewlines), !cleaned.isEmpty else {
+            return nil
+        }
+
+        let replacements: [(String, String)] = [
+            (#"https?://\S+|www\.\S+"#, "[link]"),
+            (#"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#, "[email]"),
+            (#"`[^`]*`"#, "[text]"),
+            (#""[^"]*""#, "[text]"),
+            (#"'[^']*'"#, "[text]"),
+            (#"\b\d{4,}\b"#, "[number]")
+        ]
+
+        for (pattern, replacement) in replacements {
+            cleaned = cleaned.replacingOccurrences(
+                of: pattern,
+                with: replacement,
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+
+        cleaned = cleaned
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !cleaned.isEmpty else { return nil }
+        if cleaned.count > 120 {
+            let index = cleaned.index(cleaned.startIndex, offsetBy: 120)
+            cleaned = String(cleaned[..<index]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return cleaned
     }
 }
 

@@ -109,8 +109,8 @@ public final class DatabaseStore {
         let sql = """
         INSERT INTO activity_samples (
             id, timestamp, app_name, bundle_identifier, goal_id, focus_state,
-            activity_category, confidence, duration_seconds, nudge_shown
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            activity_category, activity_summary, confidence, duration_seconds, nudge_shown
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
 
         try withStatement(sql) { statement in
@@ -121,9 +121,10 @@ public final class DatabaseStore {
             bindText(statement, 5, sample.goalID.uuidString)
             bindText(statement, 6, sample.focusState.rawValue)
             bindText(statement, 7, sample.activityCategory)
-            sqlite3_bind_double(statement, 8, sample.confidence)
-            sqlite3_bind_double(statement, 9, sample.durationSeconds)
-            sqlite3_bind_int(statement, 10, sample.nudgeShown ? 1 : 0)
+            bindNullableText(statement, 8, sample.activitySummary)
+            sqlite3_bind_double(statement, 9, sample.confidence)
+            sqlite3_bind_double(statement, 10, sample.durationSeconds)
+            sqlite3_bind_int(statement, 11, sample.nudgeShown ? 1 : 0)
             try step(statement)
         }
     }
@@ -131,7 +132,7 @@ public final class DatabaseStore {
     public func fetchRecentSamples(limit: Int = 24) throws -> [ActivitySample] {
         let sql = """
         SELECT id, timestamp, app_name, bundle_identifier, goal_id, focus_state,
-               activity_category, confidence, duration_seconds, nudge_shown
+               activity_category, activity_summary, confidence, duration_seconds, nudge_shown
         FROM activity_samples
         ORDER BY timestamp DESC
         LIMIT ?;
@@ -263,11 +264,14 @@ public final class DatabaseStore {
             goal_id TEXT NOT NULL,
             focus_state TEXT NOT NULL,
             activity_category TEXT NOT NULL,
+            activity_summary TEXT,
             confidence REAL NOT NULL,
             duration_seconds REAL NOT NULL,
             nudge_shown INTEGER NOT NULL
         );
         """)
+
+        try addColumnIfMissing(table: "activity_samples", column: "activity_summary", definition: "TEXT")
 
         try execute("""
         CREATE TABLE IF NOT EXISTS settings (
@@ -280,6 +284,22 @@ public final class DatabaseStore {
     private func execute(_ sql: String) throws {
         try withStatement(sql) { statement in
             try step(statement)
+        }
+    }
+
+    private func addColumnIfMissing(table: String, column: String, definition: String) throws {
+        let columns = try tableColumns(table)
+        guard !columns.contains(column) else { return }
+        try execute("ALTER TABLE \(table) ADD COLUMN \(column) \(definition);")
+    }
+
+    private func tableColumns(_ table: String) throws -> Set<String> {
+        try withStatement("PRAGMA table_info(\(table));") { statement in
+            var columns = Set<String>()
+            while sqlite3_step(statement) == SQLITE_ROW {
+                columns.insert(columnText(statement, 1))
+            }
+            return columns
         }
     }
 
@@ -328,9 +348,10 @@ public final class DatabaseStore {
             goalID: goalID,
             focusState: FocusState(rawValue: columnText(statement, 5)) ?? .unknown,
             activityCategory: columnText(statement, 6),
-            confidence: sqlite3_column_double(statement, 7),
-            durationSeconds: sqlite3_column_double(statement, 8),
-            nudgeShown: sqlite3_column_int(statement, 9) == 1
+            activitySummary: columnNullableText(statement, 7),
+            confidence: sqlite3_column_double(statement, 8),
+            durationSeconds: sqlite3_column_double(statement, 9),
+            nudgeShown: sqlite3_column_int(statement, 10) == 1
         )
     }
 }

@@ -67,6 +67,7 @@ SettingsView
 - settings
 - activity sample metadata
 - focus state/category/confidence/duration/nudge flags
+- optional redacted activity summaries after explicit user opt-in
 
 It should not persist screenshot bytes, OCR text, visible text, model prompts, or image base64.
 

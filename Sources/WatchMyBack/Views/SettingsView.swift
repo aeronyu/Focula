@@ -222,6 +222,20 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Privacy") {
+                Toggle(
+                    "Save safe activity summaries",
+                    isOn: Binding(
+                        get: { model.settings.persistActivitySummaries },
+                        set: { model.updatePersistActivitySummaries($0) }
+                    )
+                )
+
+                Text("When enabled, Watch My Back stores a short redacted activity summary for the dashboard feed. Raw screenshots, OCR, visible text, prompts, and image data are still not stored.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Sampling") {
                 Stepper(
                     value: Binding(

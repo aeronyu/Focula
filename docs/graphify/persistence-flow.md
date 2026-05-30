@@ -44,6 +44,7 @@ Stores classification metadata only:
 - goal_id
 - focus_state
 - activity_category
+- activity_summary, nullable and only populated after user opt-in to safe summary storage
 - confidence
 - duration_seconds
 - nudge_shown
@@ -51,6 +52,8 @@ Stores classification metadata only:
 ### `settings`
 
 Stores encoded `AppSettings`, including model/runtime configuration.
+
+`AppSettings.persistActivitySummaries` controls whether safe activity summaries are persisted. Before `activity_summary` is saved, `AppModel` runs the model-provided summary through `ActivitySummaryRedactor`.
 
 ## Important functions
 
@@ -66,7 +69,7 @@ Stores encoded `AppSettings`, including model/runtime configuration.
 
 ## Privacy invariant
 
-`schemaContainsScreenshotStorage()` should remain false. If a future migration adds columns related to `screenshot`, `image_bytes`, `ocr_text`, or `visible_text`, stop and review the privacy model.
+`schemaContainsScreenshotStorage()` should remain false. If a future migration adds columns related to `screenshot`, `image_bytes`, `ocr_text`, or `visible_text`, stop and review the privacy model. Activity summaries are allowed only as redacted, generic, opt-in metadata.
 
 ## Graphify audit questions
 

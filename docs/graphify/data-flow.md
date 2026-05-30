@@ -30,7 +30,7 @@ Nudges should be based on sustained drift from `ActivityWindowAnalyzer`, not a s
 ## Dashboard presentation flow
 
 ```text
-ActivitySample.activityCategory / focusState
+ActivitySample.activitySummary / activityCategory / focusState
   -> DashboardCopy.activitySummary(for:)
   -> ActivityObservationRow
   -> Adventure Log
@@ -94,4 +94,4 @@ Goal
   -> goals table
 ```
 
-Only metadata should flow into SQLite. If short activity summaries are added later, define their privacy/redaction rules before persisting them.
+Only metadata should flow into SQLite. Short activity summaries flow into SQLite only when the user enables `AppSettings.persistActivitySummaries`; `ActivitySummaryRedactor` removes obvious sensitive fragments before persistence.

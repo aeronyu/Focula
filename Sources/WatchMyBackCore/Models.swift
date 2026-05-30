@@ -97,6 +97,7 @@ public struct ActivitySample: Identifiable, Codable, Equatable, Sendable {
     public var goalID: UUID
     public var focusState: FocusState
     public var activityCategory: String
+    public var activitySummary: String?
     public var confidence: Double
     public var durationSeconds: TimeInterval
     public var nudgeShown: Bool
@@ -109,6 +110,7 @@ public struct ActivitySample: Identifiable, Codable, Equatable, Sendable {
         goalID: UUID,
         focusState: FocusState,
         activityCategory: String,
+        activitySummary: String? = nil,
         confidence: Double,
         durationSeconds: TimeInterval,
         nudgeShown: Bool
@@ -120,6 +122,7 @@ public struct ActivitySample: Identifiable, Codable, Equatable, Sendable {
         self.goalID = goalID
         self.focusState = focusState
         self.activityCategory = activityCategory
+        self.activitySummary = activitySummary
         self.confidence = confidence
         self.durationSeconds = durationSeconds
         self.nudgeShown = nudgeShown
@@ -456,6 +459,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var builtInModelStatus: ModelRuntimeStatus
     public var modelTelemetry: ModelTelemetry
     public var sampleIntervalSeconds: TimeInterval
+    public var persistActivitySummaries: Bool
     public var paused: Bool
 
     public init(
@@ -465,6 +469,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus: ModelRuntimeStatus = .builtInDefault(),
         modelTelemetry: ModelTelemetry = ModelTelemetry(),
         sampleIntervalSeconds: TimeInterval = 60,
+        persistActivitySummaries: Bool = false,
         paused: Bool = true
     ) {
         self.endpoint = endpoint
@@ -473,6 +478,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.builtInModelStatus = builtInModelStatus
         self.modelTelemetry = modelTelemetry
         self.sampleIntervalSeconds = sampleIntervalSeconds
+        self.persistActivitySummaries = persistActivitySummaries
         self.paused = paused
     }
 
@@ -483,6 +489,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case builtInModelStatus
         case modelTelemetry
         case sampleIntervalSeconds
+        case persistActivitySummaries
         case paused
     }
 
@@ -504,6 +511,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus = decodedStatus
         modelTelemetry = try container.decodeIfPresent(ModelTelemetry.self, forKey: .modelTelemetry) ?? ModelTelemetry()
         sampleIntervalSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .sampleIntervalSeconds) ?? 60
+        persistActivitySummaries = try container.decodeIfPresent(Bool.self, forKey: .persistActivitySummaries) ?? false
         paused = try container.decodeIfPresent(Bool.self, forKey: .paused) ?? true
     }
 }

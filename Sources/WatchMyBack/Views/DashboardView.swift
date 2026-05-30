@@ -65,17 +65,8 @@ struct DashboardView: View {
         ]
     }
 
-    private var dashboardBackground: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(nsColor: .windowBackgroundColor),
-                Color.purple.opacity(0.08),
-                Color.cyan.opacity(0.07),
-                Color.orange.opacity(0.06)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var dashboardBackground: Color {
+        Color(nsColor: .windowBackgroundColor)
     }
 }
 
@@ -175,12 +166,8 @@ private struct MissionHeroCard: View {
         Double(model.stats.xp % 120) / 120.0
     }
 
-    private var heroBackground: LinearGradient {
-        LinearGradient(
-            colors: [Color.purple.opacity(0.18), Color.cyan.opacity(0.14), Color.orange.opacity(0.13)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var heroBackground: Color {
+        Color.purple.opacity(0.12)
     }
 }
 
@@ -239,7 +226,7 @@ private struct FocusRingCard: View {
                     .stroke(.white.opacity(0.45), lineWidth: 16)
                 Circle()
                     .trim(from: 0, to: min(model.stats.focusRatio, 1))
-                    .stroke(.green.gradient, style: StrokeStyle(lineWidth: 16, lineCap: .round))
+                    .stroke(.green, style: StrokeStyle(lineWidth: 16, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 4) {
                     Text(DisplayFormatters.percent(model.stats.focusRatio))
@@ -594,6 +581,10 @@ private struct PlayfulInfoCard<Content: View>: View {
 
 private enum DashboardCopy {
     static func activitySummary(for sample: ActivitySample) -> String {
+        if let summary = sample.activitySummary, !summary.isEmpty {
+            return summary
+        }
+
         switch sample.activityCategory {
         case "built_in_model_not_ready":
             return "Scout is still gearing up"

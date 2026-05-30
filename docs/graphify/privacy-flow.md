@@ -32,6 +32,7 @@ Allowed persisted data:
 - confidence
 - duration seconds
 - nudge shown flag
+- redacted activity summary, only when the user enables summary storage
 - user model/settings metadata
 
 ## Primary path to audit
@@ -42,13 +43,13 @@ ScreenCaptureKitSnapshotProvider.captureJPEGData
   -> FrameDeduplicator.shouldClassify
   -> BuiltInGemmaClient or LocalVisionClient
   -> VisionClassifierResult
-  -> ActivitySample metadata
+  -> ActivitySample metadata, with optional redacted summary gated by AppSettings.persistActivitySummaries
   -> DatabaseStore.saveActivitySample
 ```
 
 ## Built-in runtime privacy behavior
 
-For built-in Gemma, screenshots are sent to `builtin_gemma_sidecar.py` on localhost. The sidecar should return only structured `VisionClassifierResult` JSON and should not write raw image content to disk.
+For built-in Gemma, screenshots are sent to `builtin_gemma_sidecar.py` on localhost. The sidecar should return only structured `VisionClassifierResult` JSON and should not write raw image content to disk. Short activity summaries must be generic and are redacted again in Swift before any persistence.
 
 ## Cloud opt-in guardrail
 
