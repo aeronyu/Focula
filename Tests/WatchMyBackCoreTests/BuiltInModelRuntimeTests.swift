@@ -24,6 +24,15 @@ final class BuiltInModelRuntimeTests: XCTestCase {
         XCTAssertFalse(result.nudgeSuggested)
     }
 
+    func testBuiltInRuntimeUnavailableIsDistinctFromMissingInstall() {
+        let result = BuiltInGemmaClient.runtimeUnavailableFallback()
+
+        XCTAssertEqual(result.focusState, .unknown)
+        XCTAssertEqual(result.activityCategory, "built_in_model_runtime_error")
+        XCTAssertEqual(result.evidenceCodes, ["builtin_gemma_sidecar_unavailable"])
+        XCTAssertNil(result.activitySummary)
+    }
+
     func testModelDownloadStateStoresNoScreenshotFields() throws {
         let path = FileManager.default.temporaryDirectory
             .appendingPathComponent("watch-my-back-model-state-\(UUID().uuidString).sqlite")

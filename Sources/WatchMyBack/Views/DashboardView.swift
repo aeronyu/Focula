@@ -513,6 +513,8 @@ private enum DashboardCopy {
         switch sample.activityCategory {
         case "built_in_model_not_ready":
             return "Scout is still gearing up"
+        case "built_in_model_runtime_error":
+            return "Local model needs a restart"
         case "screen_recording_permission_missing":
             return "Scout needs screen access"
         case "classifier_unavailable", "unknown":
@@ -548,14 +550,13 @@ private enum DashboardCopy {
     }
 
     private static func setupEntry(for sample: ActivitySample, count: Int) -> ActivityLogEntry {
-        let plural = count == 1 ? "check-in" : "check-ins"
         return ActivityLogEntry(
             id: "setup-\(sample.activityCategory)",
             title: setupTitle(for: sample),
-            detail: "\(count) \(plural) need setup · latest \(DisplayFormatters.time(sample.timestamp))",
+            detail: setupDetail(for: sample, count: count),
             icon: setupIcon(for: sample),
-            tint: .purple,
-            background: Color.purple.opacity(0.08),
+            tint: setupTint(for: sample),
+            background: setupTint(for: sample).opacity(0.08),
             nudgeShown: false
         )
     }
@@ -563,6 +564,7 @@ private enum DashboardCopy {
     private static func isSetupNoise(_ sample: ActivitySample) -> Bool {
         switch sample.activityCategory {
         case "built_in_model_not_ready",
+             "built_in_model_runtime_error",
              "screen_recording_permission_missing",
              "classifier_unavailable",
              "unknown",
@@ -577,6 +579,8 @@ private enum DashboardCopy {
         switch sample.activityCategory {
         case "built_in_model_not_ready":
             return !setupState.builtInModelReady
+        case "built_in_model_runtime_error":
+            return true
         case "screen_recording_permission_missing":
             return !setupState.screenRecordingGranted
         case "cloud_blocked":
@@ -592,6 +596,8 @@ private enum DashboardCopy {
         switch sample.activityCategory {
         case "built_in_model_not_ready":
             return "Finish local model setup"
+        case "built_in_model_runtime_error":
+            return "Restart local model"
         case "screen_recording_permission_missing":
             return "Grant Screen Recording"
         case "cloud_blocked":
@@ -601,16 +607,47 @@ private enum DashboardCopy {
         }
     }
 
+    private static func setupDetail(for sample: ActivitySample, count: Int) -> String {
+        let plural = count == 1 ? "check-in" : "check-ins"
+        let action: String
+        switch sample.activityCategory {
+        case "built_in_model_runtime_error":
+            action = count == 1 ? "needs model restart" : "need model restart"
+        case "screen_recording_permission_missing":
+            action = count == 1 ? "needs screen access" : "need screen access"
+        case "cloud_blocked":
+            action = count == 1 ? "needs cloud opt-in" : "need cloud opt-in"
+        default:
+            action = count == 1 ? "needs setup" : "need setup"
+        }
+        return "\(count) \(plural) \(action) · latest \(DisplayFormatters.time(sample.timestamp))"
+    }
+
     private static func setupIcon(for sample: ActivitySample) -> String {
         switch sample.activityCategory {
         case "screen_recording_permission_missing":
             return "camera.viewfinder"
         case "built_in_model_not_ready":
             return "cpu"
+        case "built_in_model_runtime_error":
+            return "exclamationmark.triangle"
         case "cloud_blocked":
             return "lock.shield"
         default:
             return "wrench.and.screwdriver"
+        }
+    }
+
+    private static func setupTint(for sample: ActivitySample) -> Color {
+        switch sample.activityCategory {
+        case "built_in_model_runtime_error":
+            return .orange
+        case "screen_recording_permission_missing":
+            return .blue
+        case "cloud_blocked":
+            return .purple
+        default:
+            return .purple
         }
     }
 

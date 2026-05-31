@@ -1,11 +1,16 @@
 import Foundation
+import Darwin
 import WatchMyBackCore
 
 @MainActor
 final class BuiltInRuntimeController {
     private var sidecarProcess: Process?
     private var runningModelID: String?
-    private let port = 8765
+    private let port: Int
+
+    init(port: Int = BuiltInRuntimeController.availablePort()) {
+        self.port = port
+    }
 
     var endpoint: URL {
         URL(string: "http://127.0.0.1:\(port)/classify")!
@@ -130,6 +135,36 @@ final class BuiltInRuntimeController {
                 try FileManager.default.removeItem(at: url)
             }
         }
+    }
+
+    private static func availablePort() -> Int {
+        let socketDescriptor = socket(AF_INET, SOCK_STREAM, 0)
+        guard socketDescriptor >= 0 else { return 8765 }
+        defer { close(socketDescriptor) }
+
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = in_port_t(0).bigEndian
+        address.sin_addr = in_addr(s_addr: inet_addr("127.0.0.1"))
+
+        let bindResult = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
+                bind(socketDescriptor, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bindResult == 0 else { return 8765 }
+
+        var boundAddress = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        let nameResult = withUnsafeMutablePointer(to: &boundAddress) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
+                getsockname(socketDescriptor, socketAddress, &length)
+            }
+        }
+        guard nameResult == 0 else { return 8765 }
+
+        return Int(UInt16(bigEndian: boundAddress.sin_port))
     }
 
     func ensureRunning(model descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) async throws {

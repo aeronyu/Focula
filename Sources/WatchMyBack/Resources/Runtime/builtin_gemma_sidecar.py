@@ -11,7 +11,7 @@ PROCESSOR = None
 MODEL_PATH = None
 
 
-def fallback(category="built_in_model_not_ready", evidence="builtin_runtime_error"):
+def fallback(category="built_in_model_runtime_error", evidence="builtin_runtime_error"):
     return {
         "focusState": "unknown",
         "activityCategory": category,
