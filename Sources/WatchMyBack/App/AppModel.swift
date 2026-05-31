@@ -398,20 +398,24 @@ final class AppModel: ObservableObject {
     }
 
     func deleteMission(_ mission: Goal) {
-        guard goals.count > 1 else {
-            lastError = "Keep at least one mission."
-            return
-        }
-
         if store == nil {
             goals.removeAll { $0.id == mission.id }
-            ensureActiveMissionAfterDeleting(missionID: mission.id)
+            if goals.isEmpty {
+                let starter = Goal.starter
+                goals = [starter]
+                selectedGoalID = starter.id
+            } else {
+                ensureActiveMissionAfterDeleting(missionID: mission.id)
+            }
             statusMessage = "\(mission.title) mission removed."
             return
         }
 
         do {
             try store?.deleteGoal(id: mission.id)
+            if try store?.fetchGoals().isEmpty == true {
+                selectedGoalID = try store?.seedDefaultGoalIfNeeded().id
+            }
             reloadFromStore()
             ensureActiveMissionAfterDeleting(missionID: mission.id)
             statusMessage = "\(mission.title) mission removed."

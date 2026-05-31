@@ -31,7 +31,6 @@ struct GoalListView: View {
                             } label: {
                                 Label("Remove Mission", systemImage: "trash")
                             }
-                            .disabled(model.goals.count <= 1)
                         }
                 }
             }
@@ -61,7 +60,7 @@ struct GoalListView: View {
                 } label: {
                     Label("Remove Mission", systemImage: "trash")
                 }
-                .disabled(model.selectedGoal == nil || model.goals.count <= 1)
+                .disabled(model.selectedGoal == nil)
             }
         }
         .sheet(item: $editingDraft) { draft in
