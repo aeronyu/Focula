@@ -3,20 +3,34 @@ import WatchMyBackCore
 
 struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var selectedTab: DashboardTab = .overview
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                MissionHeroCard()
-
-                LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 14) {
-                    FocusRingCard()
-                    MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .mint)
-                    MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "course corrections", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
-                    MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .pink)
+                Picker("Dashboard section", selection: $selectedTab) {
+                    ForEach(DashboardTab.allCases) { tab in
+                        Label(tab.title, systemImage: tab.systemImage).tag(tab)
+                    }
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
 
-                TimelinePanel()
+                switch selectedTab {
+                case .overview:
+                    MissionHeroCard()
+
+                    LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 14) {
+                        FocusRingCard()
+                        MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .mint)
+                        MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "course corrections", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
+                        MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .pink)
+                    }
+
+                    TimelinePanel()
+                case .missionDetails:
+                    MissionDetailsPanel()
+                }
             }
             .frame(maxWidth: 980, alignment: .leading)
             .padding(20)
@@ -59,6 +73,27 @@ struct DashboardView: View {
     }
 }
 
+private enum DashboardTab: String, CaseIterable, Identifiable {
+    case overview
+    case missionDetails
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .overview: "Overview"
+        case .missionDetails: "Mission Details"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .overview: "gauge.with.dots.needle.67percent"
+        case .missionDetails: "square.and.pencil"
+        }
+    }
+}
+
 private struct MissionHeroCard: View {
     @EnvironmentObject private var model: AppModel
 
@@ -91,14 +126,9 @@ private struct MissionHeroCard: View {
         }
         .padding(18)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(alignment: .leading) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(heroAccent)
-                .frame(width: 5)
-        }
         .overlay {
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(heroAccent.opacity(0.2), lineWidth: 1)
+                .stroke(heroAccent.opacity(0.18), lineWidth: 1)
         }
         .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 4)
     }
@@ -195,6 +225,225 @@ private struct MissionHeroCard: View {
 
 }
 
+private struct MissionDetailsPanel: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var draft: DashboardMissionDraft?
+    @State private var saveTask: Task<Void, Never>?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Mission Details", systemImage: "square.and.pencil")
+                    .font(.title3.bold())
+                Spacer()
+                Text("autosaves")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
+
+            if let draft {
+                Form {
+                    Section("Mission") {
+                        TextField("Title", text: draftBinding(\.title))
+                        TextField("Intent", text: draftBinding(\.description), axis: .vertical)
+                            .lineLimit(3...5)
+                        Toggle("Active mission", isOn: draftBinding(\.isActive))
+                        Stepper(value: draftBinding(\.dailyTargetMinutes), in: 15...720, step: 15) {
+                            Text("\(draft.dailyTargetMinutes)m daily target")
+                        }
+                    }
+
+                    Section("Quest Hours") {
+                        DashboardWeekdayPicker(selection: draftBinding(\.weekdays))
+                        Picker("Start", selection: draftBinding(\.startMinute)) {
+                            ForEach(DashboardMissionDraft.timeOptions, id: \.self) { minute in
+                                Text(DashboardMissionDraft.timeString(minute)).tag(minute)
+                            }
+                        }
+                        Picker("End", selection: draftBinding(\.endMinute)) {
+                            ForEach(DashboardMissionDraft.timeOptions, id: \.self) { minute in
+                                Text(DashboardMissionDraft.timeString(minute)).tag(minute)
+                            }
+                        }
+                    }
+
+                    Section("Scout Hints") {
+                        TextField("Helpful apps", text: draftBinding(\.allowedAppsText), axis: .vertical)
+                            .lineLimit(1...3)
+                        TextField("Distracting apps", text: draftBinding(\.blockedAppsText), axis: .vertical)
+                            .lineLimit(1...3)
+                        TextField("On-quest examples", text: draftBinding(\.onGoalExamplesText), axis: .vertical)
+                            .lineLimit(2...3)
+                        TextField("Off-quest examples", text: draftBinding(\.offGoalExamplesText), axis: .vertical)
+                            .lineLimit(2...3)
+                    }
+                }
+                .formStyle(.grouped)
+                .frame(minHeight: 540)
+            } else {
+                ContentUnavailableView(
+                    "No mission selected",
+                    systemImage: "scope",
+                    description: Text("Select a mission from the sidebar to edit its details.")
+                )
+                .frame(minHeight: 360)
+            }
+        }
+        .padding(16)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.blue.opacity(0.14), lineWidth: 1)
+        }
+        .onAppear(perform: syncDraftFromSelection)
+        .onChange(of: model.selectedGoal?.id) { _, _ in
+            syncDraftFromSelection()
+        }
+        .onChange(of: model.selectedGoal) { _, goal in
+            guard let goal, draft?.id != goal.id else { return }
+            draft = DashboardMissionDraft(goal: goal)
+        }
+        .onChange(of: draft) { _, value in
+            scheduleAutosave(value)
+        }
+        .onDisappear {
+            saveTask?.cancel()
+        }
+    }
+
+    private func draftBinding<Value>(_ keyPath: WritableKeyPath<DashboardMissionDraft, Value>) -> Binding<Value> {
+        Binding(
+            get: { draft![keyPath: keyPath] },
+            set: { value in
+                draft?[keyPath: keyPath] = value
+            }
+        )
+    }
+
+    private func syncDraftFromSelection() {
+        if let goal = model.selectedGoal {
+            draft = DashboardMissionDraft(goal: goal)
+        } else {
+            draft = nil
+        }
+    }
+
+    private func scheduleAutosave(_ draft: DashboardMissionDraft?) {
+        saveTask?.cancel()
+        guard let draft, draft.canSave else { return }
+        saveTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 600_000_000)
+            guard !Task.isCancelled else { return }
+            model.saveMission(draft.goal)
+        }
+    }
+}
+
+private struct DashboardWeekdayPicker: View {
+    @Binding var selection: Set<Int>
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(DashboardMissionDraft.weekdays, id: \.value) { day in
+                Button {
+                    toggle(day.value)
+                } label: {
+                    Text(day.label)
+                        .font(.caption.weight(.semibold))
+                        .frame(width: 34, height: 28)
+                }
+                .buttonStyle(.bordered)
+                .tint(selection.contains(day.value) ? .green : .secondary)
+            }
+        }
+    }
+
+    private func toggle(_ weekday: Int) {
+        if selection.contains(weekday) {
+            selection.remove(weekday)
+        } else {
+            selection.insert(weekday)
+        }
+    }
+}
+
+private struct DashboardMissionDraft: Equatable {
+    var id: UUID
+    var title: String
+    var description: String
+    var weekdays: Set<Int>
+    var startMinute: Int
+    var endMinute: Int
+    var dailyTargetMinutes: Int
+    var isActive: Bool
+    var allowedAppsText: String
+    var blockedAppsText: String
+    var onGoalExamplesText: String
+    var offGoalExamplesText: String
+
+    init(goal: Goal) {
+        id = goal.id
+        title = goal.title
+        description = goal.description
+        weekdays = goal.schedule.weekdays
+        startMinute = goal.schedule.startMinute
+        endMinute = goal.schedule.endMinute
+        dailyTargetMinutes = goal.dailyTargetMinutes
+        isActive = goal.isActive
+        allowedAppsText = goal.allowedApps.joined(separator: ", ")
+        blockedAppsText = goal.blockedApps.joined(separator: ", ")
+        onGoalExamplesText = goal.onGoalExamples.joined(separator: "\n")
+        offGoalExamplesText = goal.offGoalExamples.joined(separator: "\n")
+    }
+
+    var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !weekdays.isEmpty && startMinute != endMinute
+    }
+
+    var goal: Goal {
+        Goal(
+            id: id,
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            schedule: FocusSchedule(weekdays: weekdays, startMinute: startMinute, endMinute: endMinute),
+            allowedApps: Self.list(from: allowedAppsText),
+            blockedApps: Self.list(from: blockedAppsText),
+            onGoalExamples: Self.list(from: onGoalExamplesText),
+            offGoalExamples: Self.list(from: offGoalExamplesText),
+            dailyTargetMinutes: dailyTargetMinutes,
+            isActive: isActive
+        )
+    }
+
+    static let weekdays: [(value: Int, label: String)] = [
+        (1, "Sun"),
+        (2, "Mon"),
+        (3, "Tue"),
+        (4, "Wed"),
+        (5, "Thu"),
+        (6, "Fri"),
+        (7, "Sat")
+    ]
+
+    static let timeOptions: [Int] = stride(from: 0, through: 23 * 60 + 45, by: 15).map { $0 }
+
+    static func timeString(_ minuteOfDay: Int) -> String {
+        let hour = minuteOfDay / 60
+        let minute = minuteOfDay % 60
+        var components = DateComponents()
+        components.hour = hour
+        components.minute = minute
+        let date = Calendar.current.date(from: components) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
+    private static func list(from text: String) -> [String] {
+        text.split(whereSeparator: { $0 == "," || $0 == "\n" })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+}
+
 private struct PermissionStatusBanner: View {
     @EnvironmentObject private var model: AppModel
 
@@ -246,22 +495,28 @@ private struct FocusRingCard: View {
                     .padding(.vertical, 5)
                     .background(.green.opacity(0.14), in: Capsule())
             }
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.45), lineWidth: 12)
-                Circle()
-                    .trim(from: 0, to: min(model.stats.focusRatio, 1))
-                    .stroke(.green, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                VStack(spacing: 4) {
-                    Text(DisplayFormatters.percent(model.stats.focusRatio))
-                        .font(.title.bold())
-                    Text("aligned")
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
+            GeometryReader { proxy in
+                let ringSize = min(proxy.size.width, proxy.size.height)
+                ZStack {
+                    Circle()
+                        .stroke(.white.opacity(0.45), lineWidth: max(8, ringSize * 0.10))
+                    Circle()
+                        .trim(from: 0, to: min(model.stats.focusRatio, 1))
+                        .stroke(.green, style: StrokeStyle(lineWidth: max(8, ringSize * 0.10), lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 4) {
+                        Text(DisplayFormatters.percent(model.stats.focusRatio))
+                            .font(.title.bold())
+                        Text("aligned")
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                .frame(width: ringSize, height: ringSize)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
-            .frame(width: 104, height: 104)
+            .frame(maxWidth: .infinity)
+            .frame(height: 98)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -478,21 +733,22 @@ private enum DashboardCopy {
         var entries: [ActivityLogEntry] = []
         var setupCounts: [String: (sample: ActivitySample, count: Int)] = [:]
 
-        for sample in samples.prefix(30) {
+        for block in ActivityLogCompactor.compact(samples: Array(samples.prefix(240))).prefix(80) {
+            let sample = block.latestSample
             if isSetupNoise(sample) {
                 guard shouldShowSetupNoise(sample, setupState: setupState) else {
                     continue
                 }
                 let key = sample.activityCategory
                 if let current = setupCounts[key] {
-                    setupCounts[key] = (current.sample, current.count + 1)
+                    setupCounts[key] = (current.sample, current.count + block.sampleCount)
                 } else {
-                    setupCounts[key] = (sample, 1)
+                    setupCounts[key] = (sample, block.sampleCount)
                 }
                 continue
             }
 
-            entries.append(activityEntry(for: sample))
+            entries.append(activityEntry(for: block))
             if entries.count >= 10 {
                 break
             }
@@ -537,16 +793,28 @@ private enum DashboardCopy {
         }
     }
 
-    private static func activityEntry(for sample: ActivitySample) -> ActivityLogEntry {
-        ActivityLogEntry(
+    private static func activityEntry(for block: ActivityLogBlock) -> ActivityLogEntry {
+        let sample = block.latestSample
+        return ActivityLogEntry(
             id: sample.id.uuidString,
             title: activitySummary(for: sample),
-            detail: "Scout checked \(sample.appName) at \(DisplayFormatters.time(sample.timestamp))",
+            detail: activityDetail(for: block),
             icon: sample.focusState.symbolName,
             tint: sample.focusState.tint,
             background: rowBackground(for: sample.focusState),
             nudgeShown: sample.nudgeShown
         )
+    }
+
+    private static func activityDetail(for block: ActivityLogBlock) -> String {
+        let timeRange = block.sampleCount > 1
+            ? "\(DisplayFormatters.time(block.start))-\(DisplayFormatters.time(block.end))"
+            : DisplayFormatters.time(block.end)
+        let duration = DisplayFormatters.minutes(block.durationSeconds)
+        if block.sampleCount > 1 {
+            return "\(duration) in \(block.appName) · \(block.sampleCount) check-ins · \(timeRange)"
+        }
+        return "Scout checked \(block.appName) at \(timeRange)"
     }
 
     private static func setupEntry(for sample: ActivitySample, count: Int) -> ActivityLogEntry {

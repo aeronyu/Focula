@@ -14,6 +14,7 @@ public final class BuiltInGemmaClient: VisionClassifying {
 
     public func classify(
         imageData: Data,
+        contextImageData: [Data] = [],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?
@@ -24,6 +25,7 @@ public final class BuiltInGemmaClient: VisionClassifying {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try makeRequestBody(
                 imageData: imageData,
+                contextImageData: contextImageData,
                 goal: goal,
                 appName: appName,
                 bundleIdentifier: bundleIdentifier
@@ -44,12 +46,14 @@ public final class BuiltInGemmaClient: VisionClassifying {
 
     private func makeRequestBody(
         imageData: Data,
+        contextImageData: [Data],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?
     ) throws -> Data {
         let payload = BuiltInSidecarRequest(
             imageBase64: imageData.base64EncodedString(),
+            contextImageBase64: contextImageData.map { $0.base64EncodedString() },
             goal: GoalPayload(goal),
             appName: appName,
             bundleIdentifier: bundleIdentifier
@@ -87,6 +91,7 @@ public final class BuiltInGemmaClient: VisionClassifying {
 
 private struct BuiltInSidecarRequest: Encodable {
     let imageBase64: String
+    let contextImageBase64: [String]
     let goal: GoalPayload
     let appName: String
     let bundleIdentifier: String?

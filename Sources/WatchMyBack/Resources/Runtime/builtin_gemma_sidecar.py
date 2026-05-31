@@ -36,6 +36,7 @@ On-goal examples: {" | ".join(goal.get("onGoalExamples", []))}
 Off-goal examples: {" | ".join(goal.get("offGoalExamples", []))}
 Current app: {payload.get("appName", "unknown")}
 Bundle id: {payload.get("bundleIdentifier") or "unknown"}
+Context: Older screenshots, when present, are provided before the current screenshot. Use them only to detect continuity and summarize the current activity, not to quote content.
 Always write activitySummary when the image gives enough context. Make it a short verb phrase under 72 characters, like "Watching a recorded lecture on WhatsApp" or "Practicing coding questions on LeetCode". Mention safe app or site names when they clarify the activity. Do not quote visible text, URLs, emails, chat participants, document titles, private names, or message contents. Use null only when the activity is unclear. Use evidence codes only."""
 
 
@@ -71,11 +72,15 @@ def classify(payload):
         from mlx_vlm.utils import load_config
 
         model, processor = load_model()
+        images = []
+        for encoded in payload.get("contextImageBase64", [])[-5:]:
+            image_bytes = base64.b64decode(encoded)
+            images.append(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
         image_bytes = base64.b64decode(payload["imageBase64"])
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        images.append(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
         config = load_config(MODEL_PATH)
-        prompt = apply_chat_template(processor, config, strict_prompt(payload), num_images=1)
-        text = generate(model, processor, prompt, [image], max_tokens=160, temperature=0.0)
+        prompt = apply_chat_template(processor, config, strict_prompt(payload), num_images=len(images))
+        text = generate(model, processor, prompt, images, max_tokens=160, temperature=0.0)
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end < start:

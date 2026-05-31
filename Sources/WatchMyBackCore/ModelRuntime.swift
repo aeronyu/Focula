@@ -246,6 +246,7 @@ public struct CloudOptInBlockedClassifier: VisionClassifying {
 
     public func classify(
         imageData: Data,
+        contextImageData: [Data] = [],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?

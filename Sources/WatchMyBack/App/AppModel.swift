@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AppKit
+import CoreGraphics
 import WatchMyBackCore
 
 @MainActor
@@ -38,6 +39,8 @@ final class AppModel: ObservableObject {
     private let activityWindowAnalyzer = ActivityWindowAnalyzer()
     private var timer: Timer?
     private var permissionRefreshTimer: Timer?
+    private var screenshotContextFrames: [ScreenshotContextFrame] = []
+    private var lastSampleAt: Date?
 
     init(
         appProvider: FrontmostAppProviding = NSWorkspaceFrontmostAppProvider(),
@@ -461,7 +464,7 @@ final class AppModel: ObservableObject {
                 ? ActivitySummaryRedactor.redact(result.activitySummary)
                 : nil,
             confidence: result.confidence,
-            durationSeconds: settings.sampleIntervalSeconds,
+            durationSeconds: sampleDuration(at: now),
             nudgeShown: false
         )
 
@@ -481,6 +484,7 @@ final class AppModel: ObservableObject {
 
         do {
             try store?.saveActivitySample(sample)
+            lastSampleAt = now
             activityWindowSummary = windowSummary
             lastFocusState = result.focusState
             statusMessage = statusText(for: sample, goal: goal, windowSummary: windowSummary)
@@ -493,6 +497,7 @@ final class AppModel: ObservableObject {
     private func classifyCurrentScreen(goal: Goal, app: FrontmostAppSnapshot) async -> VisionClassifierResult {
         do {
             let imageData = try await captureProvider.captureJPEGData(maxDimension: 1280, quality: 0.55)
+            rememberContextFrame(imageData, app: app)
             guard deduplicator.shouldClassify(imageData) else {
                 return VisionClassifierResult(
                     focusState: .maybe,
@@ -519,6 +524,7 @@ final class AppModel: ObservableObject {
             )
             return await client.classify(
                 imageData: imageData,
+                contextImageData: contextImageDataForCurrentFrame(),
                 goal: goal,
                 appName: app.appName,
                 bundleIdentifier: app.bundleIdentifier
@@ -545,7 +551,7 @@ final class AppModel: ObservableObject {
             if let fetchedGoals = try store?.fetchGoals(), !fetchedGoals.isEmpty {
                 goals = fetchedGoals
             }
-            recentSamples = try store?.fetchRecentSamples(limit: 30) ?? []
+            recentSamples = try store?.fetchRecentSamples(limit: 240) ?? []
             activityWindowSummary = activityWindowAnalyzer.summarize(samples: recentSamples)
             stats = try store?.dailyStats(for: Date()) ?? stats
             lastFocusState = recentSamples.first?.focusState ?? lastFocusState
@@ -662,9 +668,13 @@ final class AppModel: ObservableObject {
 
     private func startTimer() {
         stopTimer()
-        timer = Timer.scheduledTimer(withTimeInterval: settings.sampleIntervalSeconds, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: nextSampleInterval(), repeats: false) { [weak self] _ in
             Task { @MainActor in
-                await self?.sampleNow()
+                guard let self else { return }
+                await self.sampleNow()
+                if !self.settings.paused {
+                    self.startTimer()
+                }
             }
         }
     }
@@ -672,6 +682,69 @@ final class AppModel: ObservableObject {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private func nextSampleInterval() -> TimeInterval {
+        let idleSeconds = recentInputIdleSeconds()
+
+        if idleSeconds < 60 {
+            return 30
+        }
+        if idleSeconds < 300 {
+            return 120
+        }
+        return 300
+    }
+
+    private func recentInputIdleSeconds() -> TimeInterval {
+        [
+            CGEventType.mouseMoved,
+            .leftMouseDown,
+            .rightMouseDown,
+            .scrollWheel,
+            .keyDown
+        ]
+        .map {
+            CGEventSource.secondsSinceLastEventType(
+                .combinedSessionState,
+                eventType: $0
+            )
+        }
+        .min() ?? 300
+    }
+
+    private func sampleDuration(at now: Date) -> TimeInterval {
+        guard let lastSampleAt else {
+            return nextSampleInterval()
+        }
+        return min(max(now.timeIntervalSince(lastSampleAt), 1), 300)
+    }
+
+    private func rememberContextFrame(_ imageData: Data, app: FrontmostAppSnapshot) {
+        screenshotContextFrames.append(ScreenshotContextFrame(
+            timestamp: Date(),
+            appName: app.appName,
+            bundleIdentifier: app.bundleIdentifier,
+            imageData: imageData
+        ))
+        pruneContextFrames()
+    }
+
+    private func contextImageDataForCurrentFrame() -> [Data] {
+        pruneContextFrames()
+        return screenshotContextFrames
+            .dropLast()
+            .suffix(5)
+            .map(\.imageData)
+    }
+
+    private func pruneContextFrames(now: Date = Date()) {
+        let cutoff = now.addingTimeInterval(-300)
+        screenshotContextFrames = Array(
+            screenshotContextFrames
+                .filter { $0.timestamp >= cutoff }
+                .suffix(6)
+        )
     }
 
     private func startPermissionRefreshTimer() {
@@ -727,4 +800,11 @@ final class AppModel: ObservableObject {
             return "First check-in recorded for \(goal.title)."
         }
     }
+}
+
+private struct ScreenshotContextFrame {
+    let timestamp: Date
+    let appName: String
+    let bundleIdentifier: String?
+    let imageData: Data
 }

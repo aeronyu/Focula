@@ -58,6 +58,7 @@ public struct VisionClassifierResult: Codable, Equatable, Sendable {
 public protocol VisionClassifying {
     func classify(
         imageData: Data,
+        contextImageData: [Data],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?
@@ -81,6 +82,7 @@ public final class LocalVisionClient: VisionClassifying {
 
     public func classify(
         imageData: Data,
+        contextImageData: [Data] = [],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?
@@ -91,6 +93,7 @@ public final class LocalVisionClient: VisionClassifying {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try makeRequestBody(
                 imageData: imageData,
+                contextImageData: contextImageData,
                 goal: goal,
                 appName: appName,
                 bundleIdentifier: bundleIdentifier
@@ -111,10 +114,14 @@ public final class LocalVisionClient: VisionClassifying {
 
     private func makeRequestBody(
         imageData: Data,
+        contextImageData: [Data],
         goal: Goal,
         appName: String,
         bundleIdentifier: String?
     ) throws -> Data {
+        let contextNote = contextImageData.isEmpty
+            ? "Use the screenshot to classify the current activity."
+            : "You may receive older context screenshots first and the current screenshot last. Summarize the current activity, using the older frames only to detect continuity and avoid noisy one-off changes."
         let prompt = """
         Classify this Mac activity for the user's active goal.
         Return strict JSON only. Schema:
@@ -128,8 +135,17 @@ public final class LocalVisionClient: VisionClassifying {
         Off-goal examples: \(goal.offGoalExamples.joined(separator: " | "))
         Current app: \(appName)
         Bundle id: \(bundleIdentifier ?? "unknown")
+        Context: \(contextNote)
         Always write activitySummary when the image gives enough context. Make it a short verb phrase under 72 characters, like "Watching a recorded lecture on WhatsApp" or "Practicing coding questions on LeetCode". Mention safe app or site names when they clarify the activity. Do not quote visible text, URLs, emails, chat participants, document titles, private names, or message contents. Use null only when the activity is unclear. Use evidence codes only.
         """
+        let imageContent = (contextImageData + [imageData]).map { data in
+            [
+                "type": "image_url",
+                "image_url": [
+                    "url": "data:image/jpeg;base64,\(data.base64EncodedString())"
+                ]
+            ]
+        }
 
         let body: [String: Any] = [
             "model": model,
@@ -137,15 +153,7 @@ public final class LocalVisionClient: VisionClassifying {
             "messages": [
                 [
                     "role": "user",
-                    "content": [
-                        ["type": "text", "text": prompt],
-                        [
-                            "type": "image_url",
-                            "image_url": [
-                                "url": "data:image/jpeg;base64,\(imageData.base64EncodedString())"
-                            ]
-                        ]
-                    ]
+                    "content": [["type": "text", "text": prompt]] + imageContent
                 ]
             ]
         ]
