@@ -596,6 +596,18 @@ final class AppModel: ObservableObject {
         }
     }
 
+    private func clearResolvedSetupStatusIfNeeded() {
+        guard !isSampling else { return }
+        guard settings.modelSelection.provider == .builtInGemma,
+              settings.builtInModelStatus.installState == .ready
+        else { return }
+
+        if statusMessage == "Finish local model setup in Settings before Scout can summarize activity."
+            || statusMessage == "Install or test the selected built-in Gemma model in Settings." {
+            updateIdleTrackingStatus()
+        }
+    }
+
     private func refreshRuntimeStatuses() {
         if settings.builtInModelStatus.installState != .downloading {
             settings.builtInModelStatus = builtInRuntime.currentStatus(for: selectedBuiltInModelDescriptor)
@@ -604,6 +616,7 @@ final class AppModel: ObservableObject {
             selected: settings.modelSelection,
             builtInStatus: settings.builtInModelStatus
         )
+        clearResolvedSetupStatusIfNeeded()
     }
 
     private func applyProviderDefaultsIfNeeded(_ provider: ModelProvider, previousProvider: ModelProvider) {

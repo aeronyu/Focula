@@ -187,13 +187,13 @@ private struct GoalEditorSheet: View {
 
                 Section("Scout Hints") {
                     TextField("Helpful apps", text: $draft.allowedAppsText, axis: .vertical)
-                        .lineLimit(2...4)
+                        .lineLimit(1...3)
                     TextField("Distracting apps", text: $draft.blockedAppsText, axis: .vertical)
-                        .lineLimit(2...4)
+                        .lineLimit(1...3)
                     TextField("On-quest examples", text: $draft.onGoalExamplesText, axis: .vertical)
-                        .lineLimit(2...4)
+                        .lineLimit(2...3)
                     TextField("Off-quest examples", text: $draft.offGoalExamplesText, axis: .vertical)
-                        .lineLimit(2...4)
+                        .lineLimit(2...3)
                 }
             }
             .formStyle(.grouped)
@@ -216,7 +216,7 @@ private struct GoalEditorSheet: View {
             .padding()
             .background(.bar)
         }
-        .frame(width: 560, height: 680)
+        .frame(width: 640, height: 740)
     }
 }
 
@@ -280,7 +280,7 @@ private struct GoalDraft: Identifiable {
     static func newMission() -> GoalDraft {
         GoalDraft(
             goal: Goal(
-                title: "New Mission",
+                title: "",
                 description: "",
                 schedule: .weekdaysNineToFive,
                 allowedApps: [],
