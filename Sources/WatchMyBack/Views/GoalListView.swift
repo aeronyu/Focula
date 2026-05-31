@@ -124,25 +124,44 @@ private struct GoalRow: View {
     let goal: Goal
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: goal.isActive ? "scope" : "circle")
-                .foregroundStyle(goal.isActive ? .green : .secondary)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(goal.title)
-                    .lineLimit(1)
-                Text(rowDetail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        HStack(alignment: .top, spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(statusColor.opacity(goal.isActive ? 0.14 : 0.08))
+                Image(systemName: goal.isActive ? "scope" : "circle")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(statusColor)
             }
+            .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal.title)
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+
+                HStack(spacing: 5) {
+                    Text("\(goal.dailyTargetMinutes)m")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(statusColor.opacity(0.12), in: Capsule())
+
+                    Text(scheduleSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, 5)
     }
 
-    private var rowDetail: String {
-        "\(goal.dailyTargetMinutes)m target · \(GoalDraft.scheduleString(goal.schedule))"
-    }
+    private var statusColor: Color { goal.isActive ? .green : .secondary }
+
+    private var scheduleSummary: String { GoalDraft.scheduleString(goal.schedule) }
 }
 
 private struct GoalEditorSheet: View {
