@@ -6,19 +6,20 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            LazyVStack(alignment: .leading, spacing: 18) {
                 MissionHeroCard()
 
                 LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 14) {
                     FocusRingCard()
-                    MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .green)
+                    MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .mint)
                     MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "course corrections", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
-                    MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .purple)
+                    MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .pink)
                 }
 
                 TimelinePanel()
             }
-            .padding(24)
+            .frame(maxWidth: 980, alignment: .leading)
+            .padding(20)
         }
         .background {
             dashboardBackground
@@ -50,10 +51,7 @@ struct DashboardView: View {
     }
 
     private var metricColumns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(minimum: 150), spacing: 12, alignment: .top),
-            count: 4
-        )
+        [GridItem(.adaptive(minimum: 158, maximum: 240), spacing: 12, alignment: .top)]
     }
 
     private var dashboardBackground: Color {
@@ -65,85 +63,120 @@ private struct MissionHeroCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 16) {
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.26))
-                    Text(heroEmoji)
-                        .font(.system(size: 34))
-                }
-                .frame(width: 64, height: 64)
-                .shadow(color: Color.purple.opacity(0.14), radius: 14, x: 0, y: 8)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Today’s Quest")
-                        .font(.caption.bold())
-                        .textCase(.uppercase)
-                        .tracking(1.2)
-                        .foregroundStyle(.secondary)
-                    Text(model.selectedGoal?.title ?? "Choose your next quest")
-                        .font(.system(size: 30, weight: .heavy, design: .rounded))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
-                    Text(model.statusMessage)
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 8) {
-                    Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
-                        .font(.callout.bold())
-                        .foregroundStyle(model.lastFocusState.tint)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(.white.opacity(0.32), in: Capsule())
-
-                    HStack(spacing: 8) {
-                        Text("Level \(missionLevel)")
-                            .font(.system(size: 22, weight: .heavy, design: .rounded))
-                        Text("\(nextLevelXP) XP left")
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            ViewThatFits(in: .horizontal) {
+                heroContent
+                VStack(alignment: .leading, spacing: 14) {
+                    titleBlock
+                    statusBlock
                 }
             }
 
             ProgressView(value: levelProgress)
                 .progressViewStyle(.linear)
-                .tint(.purple)
-                .scaleEffect(x: 1, y: 1.4, anchor: .center)
+                .tint(.indigo)
+                .controlSize(.small)
 
             if let lastError = model.lastError {
                 Label(lastError, systemImage: "info.circle")
                     .font(.callout)
                     .foregroundStyle(.orange)
                     .padding(10)
-                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
 
             if !model.screenRecordingPermission.isGranted {
                 PermissionStatusBanner()
             }
         }
-        .padding(20)
-        .background(heroBackground, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.white.opacity(0.22), lineWidth: 1)
+        .padding(18)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(heroAccent)
+                .frame(width: 5)
         }
-        .shadow(color: Color.purple.opacity(0.12), radius: 18, x: 0, y: 12)
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(heroAccent.opacity(0.2), lineWidth: 1)
+        }
+        .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 4)
     }
 
-    private var heroEmoji: String {
+    private var heroContent: some View {
+        HStack(alignment: .center, spacing: 16) {
+            titleBlock
+
+            Spacer(minLength: 20)
+
+            statusBlock
+        }
+    }
+
+    private var titleBlock: some View {
+        HStack(alignment: .center, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(heroAccent.opacity(0.14))
+                Image(systemName: heroSymbol)
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(heroAccent)
+            }
+            .frame(width: 54, height: 54)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Today’s Mission")
+                    .font(.caption.bold())
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+                Text(model.selectedGoal?.title ?? "Choose your next mission")
+                    .font(.title2.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                Text(model.statusMessage)
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var statusBlock: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
+                .font(.callout.bold())
+                .foregroundStyle(heroAccent)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .background(heroAccent.opacity(0.12), in: Capsule())
+
+            HStack(spacing: 8) {
+                Text("Level \(missionLevel)")
+                    .font(.title3.weight(.bold))
+                Text("\(nextLevelXP) XP left")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(minWidth: 146, alignment: .trailing)
+    }
+
+    private var heroSymbol: String {
         switch model.lastFocusState {
-        case .onGoal: return "🚀"
-        case .maybe: return "🧭"
-        case .offGoal: return "🛟"
-        case .unknown: return "🧭"
+        case .onGoal: return "checkmark.seal.fill"
+        case .maybe: return "location.north.circle.fill"
+        case .offGoal: return "arrow.uturn.backward.circle.fill"
+        case .unknown: return "scope"
+        }
+    }
+
+    private var heroAccent: Color {
+        switch model.lastFocusState {
+        case .onGoal: return .mint
+        case .maybe: return .indigo
+        case .offGoal: return .orange
+        case .unknown: return .blue
         }
     }
 
@@ -160,9 +193,6 @@ private struct MissionHeroCard: View {
         Double(model.stats.xp % 120) / 120.0
     }
 
-    private var heroBackground: Color {
-        Color.purple.opacity(0.12)
-    }
 }
 
 private struct PermissionStatusBanner: View {
@@ -171,16 +201,17 @@ private struct PermissionStatusBanner: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: "camera.viewfinder")
-                .font(.title3)
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(.orange)
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Unlock screen scouting")
-                    .font(.headline)
+                    .font(.callout.bold())
                 Text("Enable Screen Recording so Scout can judge activity locally. Screenshots are discarded after classification.")
-                    .font(.callout)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer()
@@ -195,8 +226,8 @@ private struct PermissionStatusBanner: View {
                 Label("Settings", systemImage: "gearshape")
             }
         }
-        .padding(14)
-        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+        .padding(12)
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -207,7 +238,7 @@ private struct FocusRingCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Quest Sync")
-                    .font(.headline)
+                    .font(.callout.bold())
                 Spacer()
                 Text(syncBadge)
                     .font(.caption.bold())
@@ -224,21 +255,21 @@ private struct FocusRingCard: View {
                     .rotationEffect(.degrees(-90))
                 VStack(spacing: 4) {
                     Text(DisplayFormatters.percent(model.stats.focusRatio))
-                        .font(.system(size: 28, weight: .heavy, design: .rounded))
+                        .font(.title.bold())
                     Text("aligned")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 118, height: 118)
+            .frame(width: 104, height: 104)
         }
-        .padding(16)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .frame(minHeight: 170, alignment: .topLeading)
-        .background(Color.green.opacity(0.11), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(height: 154, alignment: .topLeading)
+        .background(Color.mint.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(Color.green.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(Color.mint.opacity(0.18), lineWidth: 1)
         }
     }
 
@@ -255,33 +286,34 @@ private struct MetricTile: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             ZStack {
-                Circle()
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(tint.opacity(0.15))
                 Image(systemName: icon)
-                    .font(.title2)
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(tint)
             }
-            .frame(width: 38, height: 38)
+            .frame(width: 34, height: 34)
 
             Text(value)
-                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .font(.title.bold())
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.headline)
+                    .font(.callout.bold())
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
-        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .frame(height: 154, alignment: .topLeading)
+        .background(tint.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(tint.opacity(0.16), lineWidth: 1)
         }
     }
@@ -291,10 +323,10 @@ private struct TimelinePanel: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Activity Log")
-                    .font(.title3.bold())
+                Label("Activity Log", systemImage: "list.bullet.rectangle")
+                    .font(.headline)
                 Spacer()
                 Text(model.settings.persistActivitySummaries ? "local summaries" : "summaries off")
                     .font(.caption.bold())
@@ -303,24 +335,24 @@ private struct TimelinePanel: View {
 
             let entries = activityLogEntries
             if entries.isEmpty {
-                ContentUnavailableView(
-                    model.recentSamples.isEmpty ? "No activity yet" : "No useful activity yet",
-                    systemImage: "map",
-                    description: Text(emptyActivityLogMessage)
+                EmptyActivityLogState(
+                    title: model.recentSamples.isEmpty ? "No activity yet" : "No useful activity yet",
+                    message: emptyActivityLogMessage
                 )
-                .frame(minHeight: 260)
             } else {
-                ForEach(entries) { entry in
-                    ActivityObservationRow(entry: entry)
+                VStack(spacing: 8) {
+                    ForEach(entries) { entry in
+                        ActivityObservationRow(entry: entry)
+                    }
                 }
             }
         }
-        .padding(18)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(.white.opacity(0.18), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.blue.opacity(0.14), lineWidth: 1)
         }
     }
 
@@ -343,6 +375,39 @@ private struct TimelinePanel: View {
     }
 }
 
+private struct EmptyActivityLogState: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.blue.opacity(0.12))
+                Image(systemName: "map")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.blue)
+            }
+            .frame(width: 38, height: 38)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.callout.bold())
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.blue.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
 private struct ActivityObservationRow: View {
     let entry: ActivityLogEntry
 
@@ -358,7 +423,7 @@ private struct ActivityObservationRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title)
-                    .font(.headline)
+                    .font(.callout.bold())
                     .lineLimit(1)
                 Text(entry.detail)
                     .font(.caption)
@@ -376,8 +441,8 @@ private struct ActivityObservationRow: View {
                     .background(.orange.opacity(0.12), in: Capsule())
             }
         }
-        .padding(12)
-        .background(entry.background, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(10)
+        .background(entry.background, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 }
 
@@ -395,6 +460,10 @@ private struct ActivityLogSetupState {
     let builtInModelReady: Bool
     let screenRecordingGranted: Bool
     let cloudOptInAllowed: Bool
+
+    var coreSetupReady: Bool {
+        builtInModelReady && screenRecordingGranted
+    }
 }
 
 private enum DashboardCopy {
@@ -512,6 +581,8 @@ private enum DashboardCopy {
             return !setupState.screenRecordingGranted
         case "cloud_blocked":
             return !setupState.cloudOptInAllowed
+        case "classifier_unavailable", "unknown":
+            return !setupState.coreSetupReady
         default:
             return true
         }
