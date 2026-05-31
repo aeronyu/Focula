@@ -284,6 +284,11 @@ final class AppModel: ObservableObject {
         refreshRuntimeStatuses()
     }
 
+    func shutdown() {
+        stopTimer()
+        builtInRuntime.stop()
+    }
+
     func testSelectedModel() async {
         guard !isTestingModel else { return }
         isTestingModel = true
