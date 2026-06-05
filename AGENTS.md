@@ -24,14 +24,21 @@ Follow the spirit of `obra/superpowers` for non-trivial product/code changes:
 
 Relevant design issue: #2 “Dashboard design spec: playful but useful focus coach”.
 
-## graphify
+## Code Search
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Use `semble search` to find code by describing what it does or naming a symbol/identifier, before falling back to grep for broad code discovery:
 
-When the user types `/graphify`, invoke the `skill` tool with `skill: "graphify"` before doing anything else.
+```bash
+semble search "authentication flow"
+semble search "save_pretrained" . --top-k 10
+```
 
-Rules:
-- ALWAYS read graphify-out/GRAPH_REPORT.md before reading any source files, running grep/glob searches, or answering codebase questions. The graph is your primary map of the codebase.
-- IF graphify-out/wiki/index.md EXISTS, navigate it instead of reading raw files
-- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Use content modes when the target is not normal source code:
+
+```bash
+semble search "dashboard design spec" . --content docs
+semble search "mcp server config" . --content config
+semble search "model provider routing" . --content all
+```
+
+The index is built on first run, cached, and invalidated automatically when files change. Inspect full files only when the returned chunk does not give enough context. Use `semble find-related <file_path> <line> .` to discover code similar to a known result. Use `rg` when you need exhaustive literal matches or quick confirmation of an exact string.
