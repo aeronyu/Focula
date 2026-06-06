@@ -234,18 +234,109 @@ struct SettingsView: View {
                 Text("When enabled, Watch My Back stores a short redacted activity summary for the dashboard feed. Raw screenshots, OCR, visible text, prompts, and image data are still not stored.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                Picker(
+                    "Activity log",
+                    selection: Binding(
+                        get: { model.settings.activityLogVisibility },
+                        set: { model.updateActivityLogVisibility($0) }
+                    )
+                ) {
+                    ForEach(ActivityLogVisibility.allCases) { visibility in
+                        Text(visibility.displayName).tag(visibility)
+                    }
+                }
+            }
+
+            Section("Monitoring Rules") {
+                Toggle(
+                    "Any tracking goal can count as focused",
+                    isOn: Binding(
+                        get: { model.settings.monitoringRules.anyTrackingGoalCountsAsFocused },
+                        set: { enabled in
+                            var rules = model.settings.monitoringRules
+                            rules.anyTrackingGoalCountsAsFocused = enabled
+                            model.updateMonitoringRules(rules)
+                        }
+                    )
+                )
+
+                Toggle(
+                    "Unmatched visible activity is side tracked",
+                    isOn: Binding(
+                        get: { model.settings.monitoringRules.unmatchedActivityIsSideTracked },
+                        set: { enabled in
+                            var rules = model.settings.monitoringRules
+                            rules.unmatchedActivityIsSideTracked = enabled
+                            model.updateMonitoringRules(rules)
+                        }
+                    )
+                )
+
+                Text("The scout reviews the focused screen plus relevant visible context from other displayed screens, then ignores unrelated screen content.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Sampling") {
-                Stepper(
-                    value: Binding(
-                        get: { model.settings.sampleIntervalSeconds },
-                        set: { model.updateSampleInterval($0) }
-                    ),
-                    in: 15...300,
-                    step: 15
+                Picker(
+                    "Strategy",
+                    selection: Binding(
+                        get: { model.settings.samplingStrategy },
+                        set: { model.updateSamplingStrategy($0) }
+                    )
                 ) {
-                    Text("Every \(Int(model.settings.sampleIntervalSeconds)) seconds")
+                    ForEach(SamplingStrategy.allCases) { strategy in
+                        Text(strategy.displayName).tag(strategy)
+                    }
+                }
+
+                Text(model.settings.samplingStrategy.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if model.settings.samplingStrategy == .balanced {
+                    Stepper(
+                        value: Binding(
+                            get: { model.settings.sampleIntervalSeconds },
+                            set: { model.updateSampleInterval($0) }
+                        ),
+                        in: 60...300,
+                        step: 15
+                    ) {
+                        Text("Balanced base interval: \(Int(model.settings.sampleIntervalSeconds)) seconds")
+                    }
+                }
+            }
+
+            Section("Notifications") {
+                Toggle(
+                    "Alert on sustained drift",
+                    isOn: Binding(
+                        get: { model.settings.notificationPreferences.notifyOnSustainedDrift },
+                        set: { enabled in
+                            var preferences = model.settings.notificationPreferences
+                            preferences.notifyOnSustainedDrift = enabled
+                            model.updateNotificationPreferences(preferences)
+                        }
+                    )
+                )
+
+                Toggle(
+                    "Alert on model or runtime failures",
+                    isOn: Binding(
+                        get: { model.settings.notificationPreferences.notifyOnRuntimeFailure },
+                        set: { enabled in
+                            var preferences = model.settings.notificationPreferences
+                            preferences.notifyOnRuntimeFailure = enabled
+                            model.updateNotificationPreferences(preferences)
+                        }
+                    )
+                )
+
+                if let lastError = model.lastError {
+                    Label(lastError, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
                 }
             }
         }

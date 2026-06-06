@@ -323,6 +323,30 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func updateSamplingStrategy(_ value: SamplingStrategy) {
+        settings.samplingStrategy = value
+        saveSettings()
+        if !settings.paused {
+            stopTimer()
+            startTimer()
+        }
+    }
+
+    func updateMonitoringRules(_ value: MonitoringRules) {
+        settings.monitoringRules = value
+        saveSettings()
+    }
+
+    func updateNotificationPreferences(_ value: NotificationPreferences) {
+        settings.notificationPreferences = value
+        saveSettings()
+    }
+
+    func updateActivityLogVisibility(_ value: ActivityLogVisibility) {
+        settings.activityLogVisibility = value
+        saveSettings()
+    }
+
     func updatePersistActivitySummaries(_ value: Bool) {
         settings.persistActivitySummaries = value
         saveSettings()
@@ -391,6 +415,14 @@ final class AppModel: ObservableObject {
         var mission = mission
         mission.isActive = true
         saveMission(mission)
+    }
+
+    func duplicateMission(_ mission: Goal) {
+        var copy = mission
+        copy.id = UUID()
+        copy.title = "\(mission.title) Copy"
+        copy.isActive = false
+        saveMission(copy)
     }
 
     func deleteMission(_ mission: Goal) {
@@ -477,7 +509,7 @@ final class AppModel: ObservableObject {
         )
         sample.nudgeShown = shouldNudge
 
-        if shouldNudge {
+        if shouldNudge, settings.notificationPreferences.notifyOnSustainedDrift {
             NotificationNudgePresenter.shared.show(goal: goal, appName: app.appName)
             nudgeCoordinator.recordNudge(at: now)
         }
@@ -496,7 +528,12 @@ final class AppModel: ObservableObject {
 
     private func classifyCurrentScreen(goal: Goal, app: FrontmostAppSnapshot) async -> VisionClassifierResult {
         do {
-            let imageData = try await captureProvider.captureJPEGData(maxDimension: 1280, quality: 0.55)
+            let capture = try await captureProvider.captureContextJPEGData(
+                focusedWindowFrame: app.windowFrame,
+                maxDimension: 1280,
+                quality: 0.55
+            )
+            let imageData = capture.primaryImageData
             rememberContextFrame(imageData, app: app)
             guard deduplicator.shouldClassify(imageData) else {
                 return VisionClassifierResult(
@@ -524,8 +561,8 @@ final class AppModel: ObservableObject {
             )
             return await client.classify(
                 imageData: imageData,
-                contextImageData: contextImageDataForCurrentFrame(),
-                goal: goal,
+                contextImageData: capture.contextImageData + contextImageDataForCurrentFrame(),
+                goal: classifierGoalContext(for: goal),
                 appName: app.appName,
                 bundleIdentifier: app.bundleIdentifier
             )
@@ -543,6 +580,40 @@ final class AppModel: ObservableObject {
         } catch {
             lastError = "Screen capture unavailable: \(error.localizedDescription)"
             return .fallback()
+        }
+    }
+
+    private func classifierGoalContext(for goal: Goal) -> Goal {
+        guard settings.monitoringRules.anyTrackingGoalCountsAsFocused || settings.monitoringRules.unmatchedActivityIsSideTracked else {
+            return goal
+        }
+        var contextualGoal = goal
+        let relatedGoals = goals.filter { $0.id != goal.id }
+        let relatedGoalText = relatedGoals
+            .map { "- \($0.title): \($0.description)" }
+            .joined(separator: "\n")
+        var descriptionParts = [goal.description]
+        if settings.monitoringRules.anyTrackingGoalCountsAsFocused, !relatedGoalText.isEmpty {
+            descriptionParts.append("Also count activity as focused when it clearly supports one of these tracking goals:")
+            descriptionParts.append(relatedGoalText)
+        }
+        if settings.monitoringRules.unmatchedActivityIsSideTracked {
+            descriptionParts.append("Treat visible activity that does not match any tracking goal as side tracked when confidence is reasonable.")
+        }
+        contextualGoal.description = descriptionParts
+        .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        .joined(separator: "\n")
+        contextualGoal.allowedApps = uniqued(goal.allowedApps + relatedGoals.flatMap(\.allowedApps))
+        contextualGoal.blockedApps = uniqued(goal.blockedApps + relatedGoals.flatMap(\.blockedApps))
+        contextualGoal.onGoalExamples = uniqued(goal.onGoalExamples + relatedGoals.flatMap(\.onGoalExamples))
+        contextualGoal.offGoalExamples = uniqued(goal.offGoalExamples + relatedGoals.flatMap(\.offGoalExamples))
+        return contextualGoal
+    }
+
+    private func uniqued(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.filter { value in
+            seen.insert(value).inserted
         }
     }
 
@@ -668,7 +739,9 @@ final class AppModel: ObservableObject {
 
     private func startTimer() {
         stopTimer()
-        timer = Timer.scheduledTimer(withTimeInterval: nextSampleInterval(), repeats: false) { [weak self] _ in
+        let interval = nextSampleInterval()
+        guard interval > 0 else { return }
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 await self.sampleNow()
@@ -686,6 +759,7 @@ final class AppModel: ObservableObject {
 
     private func nextSampleInterval() -> TimeInterval {
         SamplingPolicy.nextInterval(
+            strategy: settings.samplingStrategy,
             configuredInterval: settings.sampleIntervalSeconds,
             idleSeconds: recentInputIdleSeconds()
         )

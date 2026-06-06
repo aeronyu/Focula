@@ -121,7 +121,7 @@ public final class LocalVisionClient: VisionClassifying {
     ) throws -> Data {
         let contextNote = contextImageData.isEmpty
             ? "Use the screenshot to classify the current activity."
-            : "You may receive older context screenshots first and the current screenshot last. Summarize the current activity, using the older frames only to detect continuity and avoid noisy one-off changes."
+            : "You may receive screenshots from other currently displayed screens and recent focused frames first, with the focused screen last. Use all relevant visible apps as context, discard unrelated screen content, and classify the current activity from the focused screen plus any relevant displayed context."
         let prompt = """
         Classify this Mac activity for the user's active goal.
         Return strict JSON only. Schema:
@@ -136,6 +136,7 @@ public final class LocalVisionClient: VisionClassifying {
         Current app: \(appName)
         Bundle id: \(bundleIdentifier ?? "unknown")
         Context: \(contextNote)
+        If work on any visible relevant app supports the active goal, classify it as on_goal or maybe even when the focused app alone is incomplete. If visible activity does not match the goal or examples, classify it as off_goal when confidence is reasonable.
         Always write activitySummary when the image gives enough context. Make it a short verb phrase under 72 characters, like "Watching a recorded lecture on WhatsApp" or "Practicing coding questions on LeetCode". Mention safe app or site names when they clarify the activity. Do not quote visible text, URLs, emails, chat participants, document titles, private names, or message contents. Use null only when the activity is unclear. Use evidence codes only.
         """
         let imageContent = (contextImageData + [imageData]).map { data in

@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import WatchMyBackCore
 
 struct GoalListView: View {
@@ -8,7 +10,7 @@ struct GoalListView: View {
 
     var body: some View {
         List(selection: $model.selectedGoalID) {
-            Section("Missions") {
+            Section {
                 ForEach(model.goals) { goal in
                     GoalRow(goal: goal)
                         .tag(goal.id as UUID?)
@@ -17,6 +19,12 @@ struct GoalListView: View {
                                 editingDraft = GoalDraft(goal: goal)
                             } label: {
                                 Label("Edit Mission", systemImage: "pencil")
+                            }
+
+                            Button {
+                                model.duplicateMission(goal)
+                            } label: {
+                                Label("Duplicate Mission", systemImage: "plus.square.on.square")
                             }
 
                             Button {
@@ -33,6 +41,11 @@ struct GoalListView: View {
                             }
                         }
                 }
+            } header: {
+                HStack(spacing: 6) {
+                    Text("Missions")
+                    TrackingStatusDot()
+                }
             }
         }
         .listStyle(.sidebar)
@@ -43,15 +56,6 @@ struct GoalListView: View {
                 } label: {
                     Label("New Mission", systemImage: "plus")
                 }
-
-                Button {
-                    if let goal = model.selectedGoal {
-                        editingDraft = GoalDraft(goal: goal)
-                    }
-                } label: {
-                    Label("Edit Mission", systemImage: "pencil")
-                }
-                .disabled(model.selectedGoal == nil)
 
                 Button(role: .destructive) {
                     if let goal = model.selectedGoal {
@@ -86,18 +90,6 @@ struct GoalListView: View {
         } message: {
             Text(deleteMessage)
         }
-        .safeAreaInset(edge: .bottom) {
-            VStack(alignment: .leading, spacing: 8) {
-                Label(model.settings.paused ? "Tracking paused" : "Tracking active", systemImage: model.settings.paused ? "pause.circle" : "scope")
-                    .foregroundStyle(model.settings.paused ? Color.secondary : Color.green)
-                Text("Screenshots are never stored.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
-        }
     }
 
     private var deleteAlertBinding: Binding<Bool> {
@@ -116,6 +108,44 @@ struct GoalListView: View {
             return ""
         }
         return "This removes \"\(missionPendingDelete.title)\" from your mission list. Past activity samples remain as history."
+    }
+}
+
+private struct TrackingStatusDot: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var showsDetails = false
+
+    var body: some View {
+        Circle()
+            .fill(statusColor)
+            .frame(width: 8, height: 8)
+            .help(statusText)
+            .onTapGesture {
+                showsDetails.toggle()
+            }
+            .popover(isPresented: $showsDetails, arrowEdge: .bottom) {
+                Text(statusText)
+                    .font(.callout)
+                    .padding(12)
+                    .frame(width: 220, alignment: .leading)
+            }
+    }
+
+    private var statusColor: Color {
+        if model.lastError != nil {
+            return .red
+        }
+        return model.settings.paused ? .secondary : .green
+    }
+
+    private var statusText: String {
+        if let lastError = model.lastError {
+            return "Tracking needs attention: \(lastError)"
+        }
+        if model.settings.paused {
+            return "Tracking is paused."
+        }
+        return "Tracking is active. Screenshots are classified and discarded."
     }
 }
 
@@ -178,36 +208,20 @@ private struct GoalEditorSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section("Mission") {
-                    TextField("Title", text: $draft.title)
-                    TextField("Intent", text: $draft.description, axis: .vertical)
-                        .lineLimit(3...5)
+                    TextField("Goal", text: $draft.title)
+                    DescriptionTaskList(draft: $draft)
                     Toggle("Active mission", isOn: $draft.isActive)
-                    Stepper(value: $draft.dailyTargetMinutes, in: 15...720, step: 15) {
-                        Text("\(draft.dailyTargetMinutes)m daily target")
-                    }
+                    DailyTargetFields(minutes: $draft.dailyTargetMinutes)
                 }
 
                 Section("Quest Hours") {
                     WeekdayPicker(selection: $draft.weekdays)
-
-                    Picker("Start", selection: $draft.startMinute) {
-                        ForEach(GoalDraft.timeOptions, id: \.self) { minute in
-                            Text(GoalDraft.timeString(minute)).tag(minute)
-                        }
-                    }
-
-                    Picker("End", selection: $draft.endMinute) {
-                        ForEach(GoalDraft.timeOptions, id: \.self) { minute in
-                            Text(GoalDraft.timeString(minute)).tag(minute)
-                        }
-                    }
+                    TimeRangeFields(startMinute: $draft.startMinute, endMinute: $draft.endMinute)
                 }
 
                 Section("Scout Hints") {
-                    TextField("Helpful apps", text: $draft.allowedAppsText, axis: .vertical)
-                        .lineLimit(1...3)
-                    TextField("Distracting apps", text: $draft.blockedAppsText, axis: .vertical)
-                        .lineLimit(1...3)
+                    AppSelectionField(title: "Helpful apps", text: $draft.allowedAppsText)
+                    AppSelectionField(title: "Distracting apps", text: $draft.blockedAppsText)
                     TextField("On-quest examples", text: $draft.onGoalExamplesText, axis: .vertical)
                         .lineLimit(2...3)
                     TextField("Off-quest examples", text: $draft.offGoalExamplesText, axis: .vertical)
@@ -243,6 +257,21 @@ private struct WeekdayPicker: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            Button("All") {
+                selection = Set(GoalDraft.weekdays.map(\.value))
+            }
+            .buttonStyle(.bordered)
+
+            Button("Weekdays") {
+                selection = Set([2, 3, 4, 5, 6])
+            }
+            .buttonStyle(.bordered)
+
+            Button("Weekend") {
+                selection = Set([1, 7])
+            }
+            .buttonStyle(.bordered)
+
             ForEach(GoalDraft.weekdays, id: \.value) { day in
                 Button {
                     toggle(day.value)
@@ -266,10 +295,155 @@ private struct WeekdayPicker: View {
     }
 }
 
+private struct DescriptionTaskList: View {
+    @Binding var draft: GoalDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Description / Task")
+                Spacer()
+                Button {
+                    draft.descriptionItems.append("")
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Add task")
+            }
+
+            ForEach(draft.descriptionItems.indices, id: \.self) { index in
+                TextField(inspiration, text: $draft.descriptionItems[index], axis: .vertical)
+                    .lineLimit(1...3)
+            }
+        }
+    }
+
+    private var inspiration: String {
+        let goal = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !goal.isEmpty else { return "Describe one focused task" }
+        return "Work on \(goal)"
+    }
+}
+
+private struct DailyTargetFields: View {
+    @Binding var minutes: Int
+
+    var body: some View {
+        HStack {
+            Text("Daily target")
+            Spacer()
+            TextField("0", value: hoursBinding, format: .number)
+                .frame(width: 54)
+                .textFieldStyle(.roundedBorder)
+            Text("hours")
+            TextField("60", value: minuteRemainderBinding, format: .number)
+                .frame(width: 54)
+                .textFieldStyle(.roundedBorder)
+            Text("mins")
+        }
+    }
+
+    private var hoursBinding: Binding<Int> {
+        Binding(
+            get: { minutes / 60 },
+            set: { value in minutes = max(15, min(720, value * 60 + minutes % 60)) }
+        )
+    }
+
+    private var minuteRemainderBinding: Binding<Int> {
+        Binding(
+            get: { minutes % 60 },
+            set: { value in minutes = max(15, min(720, (minutes / 60) * 60 + max(0, min(59, value)))) }
+        )
+    }
+}
+
+private struct TimeRangeFields: View {
+    @Binding var startMinute: Int
+    @Binding var endMinute: Int
+
+    var body: some View {
+        HStack {
+            Text("Start")
+            TextField("09:00", text: startText)
+                .frame(width: 80)
+                .textFieldStyle(.roundedBorder)
+            Text("End")
+            TextField("17:00", text: endText)
+                .frame(width: 80)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var startText: Binding<String> {
+        Binding(
+            get: { Self.string(from: startMinute) },
+            set: { if let minute = Self.minute(from: $0) { startMinute = minute } }
+        )
+    }
+
+    private var endText: Binding<String> {
+        Binding(
+            get: { Self.string(from: endMinute) },
+            set: { if let minute = Self.minute(from: $0) { endMinute = minute } }
+        )
+    }
+
+    private static func string(from minute: Int) -> String {
+        String(format: "%02d:%02d", minute / 60, minute % 60)
+    }
+
+    private static func minute(from text: String) -> Int? {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2, (0...23).contains(parts[0]), (0...59).contains(parts[1]) else {
+            return nil
+        }
+        return parts[0] * 60 + parts[1]
+    }
+}
+
+private struct AppSelectionField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                Spacer()
+                Button {
+                    chooseApps()
+                } label: {
+                    Label("Choose Apps", systemImage: "folder.badge.plus")
+                }
+                .help("Choose one or more apps")
+            }
+            TextField(title, text: $text, axis: .vertical)
+                .lineLimit(1...3)
+        }
+    }
+
+    private func chooseApps() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose \(title)"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        if panel.runModal() == .OK {
+            let selected = panel.urls.map { $0.deletingPathExtension().lastPathComponent }
+            let existing = GoalDraft.list(from: text)
+            text = (existing + selected).uniqued().joined(separator: ", ")
+        }
+    }
+}
+
 private struct GoalDraft: Identifiable {
     var id: UUID
     var title: String
     var description: String
+    var descriptionItems: [String]
     var weekdays: Set<Int>
     var startMinute: Int
     var endMinute: Int
@@ -284,6 +458,10 @@ private struct GoalDraft: Identifiable {
         id = goal.id
         title = goal.title
         description = goal.description
+        descriptionItems = Self.list(from: goal.description)
+        if descriptionItems.isEmpty {
+            descriptionItems = [""]
+        }
         weekdays = goal.schedule.weekdays
         startMinute = goal.schedule.startMinute
         endMinute = goal.schedule.endMinute
@@ -319,7 +497,10 @@ private struct GoalDraft: Identifiable {
         Goal(
             id: id,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: descriptionItems
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n"),
             schedule: FocusSchedule(weekdays: weekdays, startMinute: startMinute, endMinute: endMinute),
             allowedApps: Self.list(from: allowedAppsText),
             blockedApps: Self.list(from: blockedAppsText),
@@ -359,12 +540,21 @@ private struct GoalDraft: Identifiable {
         return "\(days.joined(separator: ", ")), \(timeString(schedule.startMinute))-\(timeString(schedule.endMinute))"
     }
 
-    private static func list(from text: String) -> [String] {
+    fileprivate static func list(from text: String) -> [String] {
         text
             .split { character in
                 character == "," || character == "\n" || character == ";"
             }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+}
+
+private extension Array where Element == String {
+    func uniqued() -> [String] {
+        var seen = Set<String>()
+        return filter { value in
+            seen.insert(value).inserted
+        }
     }
 }

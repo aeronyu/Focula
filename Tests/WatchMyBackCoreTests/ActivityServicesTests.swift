@@ -43,20 +43,39 @@ final class ActivityServicesTests: XCTestCase {
 
     func testSamplingPolicyUsesConfiguredIntervalWhileActive() {
         XCTAssertEqual(
-            SamplingPolicy.nextInterval(configuredInterval: 90, idleSeconds: 10),
+            SamplingPolicy.nextInterval(strategy: .balanced, configuredInterval: 90, idleSeconds: 10),
             90
         )
     }
 
     func testSamplingPolicyBacksOffWhenIdle() {
         XCTAssertEqual(
-            SamplingPolicy.nextInterval(configuredInterval: 30, idleSeconds: 90),
+            SamplingPolicy.nextInterval(strategy: .balanced, configuredInterval: 30, idleSeconds: 90),
             120
         )
         XCTAssertEqual(
-            SamplingPolicy.nextInterval(configuredInterval: 180, idleSeconds: 600),
+            SamplingPolicy.nextInterval(strategy: .balanced, configuredInterval: 180, idleSeconds: 600),
             300
         )
+    }
+
+    func testSamplingPolicyStrategiesUseDifferentCadences() {
+        XCTAssertEqual(SamplingPolicy.nextInterval(strategy: .responsive, configuredInterval: 60, idleSeconds: 10), 20)
+        XCTAssertEqual(SamplingPolicy.nextInterval(strategy: .quiet, configuredInterval: 60, idleSeconds: 10), 120)
+        XCTAssertEqual(SamplingPolicy.nextInterval(strategy: .manualOnly, configuredInterval: 60, idleSeconds: 10), 0)
+    }
+
+    func testDisplayContextSelectionKeepsFocusedDisplayPrimaryAndOtherDisplayedScreensAsContext() {
+        let displays = [
+            DisplayCaptureCandidate(id: 1, frame: CGRect(x: 0, y: 0, width: 100, height: 100), isOnScreen: true),
+            DisplayCaptureCandidate(id: 2, frame: CGRect(x: 100, y: 0, width: 100, height: 100), isOnScreen: true),
+            DisplayCaptureCandidate(id: 3, frame: CGRect(x: 200, y: 0, width: 100, height: 100), isOnScreen: false)
+        ]
+
+        let selection = DisplayCaptureSelection.select(displays: displays, focusedWindowFrame: CGRect(x: 120, y: 20, width: 20, height: 20))
+
+        XCTAssertEqual(selection.primary?.id, 2)
+        XCTAssertEqual(selection.context.map(\.id), [1])
     }
 
     func testSampleDurationUsesConfiguredFallbackForFirstSample() {

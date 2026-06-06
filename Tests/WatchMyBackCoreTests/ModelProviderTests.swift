@@ -10,6 +10,12 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertFalse(settings.modelSelection.cloudClassificationAllowed)
         XCTAssertTrue(settings.persistActivitySummaries)
         XCTAssertEqual(settings.builtInModelStatus.installState, .missing)
+        XCTAssertEqual(settings.samplingStrategy, .balanced)
+        XCTAssertTrue(settings.monitoringRules.anyTrackingGoalCountsAsFocused)
+        XCTAssertTrue(settings.monitoringRules.unmatchedActivityIsSideTracked)
+        XCTAssertEqual(settings.activityLogVisibility, .allActivity)
+        XCTAssertTrue(settings.notificationPreferences.notifyOnSustainedDrift)
+        XCTAssertTrue(settings.notificationPreferences.notifyOnRuntimeFailure)
     }
 
     func testBuiltInCatalogIncludesQuantizedGemmaVariants() {
@@ -58,6 +64,36 @@ final class ModelProviderTests: XCTestCase {
         XCTAssertEqual(decoded.modelSelection.modelID, BuiltInModelCatalog.defaultModel.id)
         XCTAssertEqual(decoded.builtInModelStatus.modelID, BuiltInModelCatalog.defaultModel.id)
         XCTAssertTrue(decoded.persistActivitySummaries)
+        XCTAssertEqual(decoded.samplingStrategy, .balanced)
+        XCTAssertEqual(decoded.activityLogVisibility, .allActivity)
+    }
+
+    func testMonitoringSettingsPersistInSettingsBlob() throws {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("watch-my-back-monitoring-settings-\(UUID().uuidString).sqlite")
+            .path
+        let store = try DatabaseStore(path: path)
+        var settings = AppSettings()
+        settings.samplingStrategy = .responsive
+        settings.activityLogVisibility = .focusOnly
+        settings.monitoringRules = MonitoringRules(
+            anyTrackingGoalCountsAsFocused: false,
+            unmatchedActivityIsSideTracked: true
+        )
+        settings.notificationPreferences = NotificationPreferences(
+            notifyOnSustainedDrift: false,
+            notifyOnRuntimeFailure: true
+        )
+
+        try store.saveSettings(settings)
+        let decoded = try store.fetchSettings()
+
+        XCTAssertEqual(decoded.samplingStrategy, .responsive)
+        XCTAssertEqual(decoded.activityLogVisibility, .focusOnly)
+        XCTAssertEqual(decoded.monitoringRules.anyTrackingGoalCountsAsFocused, false)
+        XCTAssertEqual(decoded.monitoringRules.unmatchedActivityIsSideTracked, true)
+        XCTAssertEqual(decoded.notificationPreferences.notifyOnSustainedDrift, false)
+        XCTAssertEqual(decoded.notificationPreferences.notifyOnRuntimeFailure, true)
     }
 
     func testProviderSwitchPersistsInSettingsBlob() throws {

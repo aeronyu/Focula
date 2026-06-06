@@ -452,6 +452,73 @@ public struct ModelTelemetry: Codable, Equatable, Sendable {
     }
 }
 
+public enum SamplingStrategy: String, Codable, CaseIterable, Identifiable, Sendable {
+    case balanced
+    case responsive
+    case quiet
+    case manualOnly
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .balanced: "Balanced"
+        case .responsive: "Responsive"
+        case .quiet: "Quiet"
+        case .manualOnly: "Manual only"
+        }
+    }
+
+    public var summary: String {
+        switch self {
+        case .balanced: "Adjusts based on recent activity and backs off when idle."
+        case .responsive: "Checks more often after input or app changes."
+        case .quiet: "Checks less often to reduce background work."
+        case .manualOnly: "Only samples when you click Scout Now."
+        }
+    }
+}
+
+public enum ActivityLogVisibility: String, Codable, CaseIterable, Identifiable, Sendable {
+    case allActivity
+    case focusOnly
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .allActivity: "All activity"
+        case .focusOnly: "Focus time only"
+        }
+    }
+}
+
+public struct MonitoringRules: Codable, Equatable, Sendable {
+    public var anyTrackingGoalCountsAsFocused: Bool
+    public var unmatchedActivityIsSideTracked: Bool
+
+    public init(
+        anyTrackingGoalCountsAsFocused: Bool = true,
+        unmatchedActivityIsSideTracked: Bool = true
+    ) {
+        self.anyTrackingGoalCountsAsFocused = anyTrackingGoalCountsAsFocused
+        self.unmatchedActivityIsSideTracked = unmatchedActivityIsSideTracked
+    }
+}
+
+public struct NotificationPreferences: Codable, Equatable, Sendable {
+    public var notifyOnSustainedDrift: Bool
+    public var notifyOnRuntimeFailure: Bool
+
+    public init(
+        notifyOnSustainedDrift: Bool = true,
+        notifyOnRuntimeFailure: Bool = true
+    ) {
+        self.notifyOnSustainedDrift = notifyOnSustainedDrift
+        self.notifyOnRuntimeFailure = notifyOnRuntimeFailure
+    }
+}
+
 public struct AppSettings: Codable, Equatable, Sendable {
     public var endpoint: URL
     public var model: String
@@ -459,6 +526,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var builtInModelStatus: ModelRuntimeStatus
     public var modelTelemetry: ModelTelemetry
     public var sampleIntervalSeconds: TimeInterval
+    public var samplingStrategy: SamplingStrategy
+    public var monitoringRules: MonitoringRules
+    public var notificationPreferences: NotificationPreferences
+    public var activityLogVisibility: ActivityLogVisibility
     public var persistActivitySummaries: Bool
     public var paused: Bool
 
@@ -469,6 +540,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus: ModelRuntimeStatus = .builtInDefault(),
         modelTelemetry: ModelTelemetry = ModelTelemetry(),
         sampleIntervalSeconds: TimeInterval = 60,
+        samplingStrategy: SamplingStrategy = .balanced,
+        monitoringRules: MonitoringRules = MonitoringRules(),
+        notificationPreferences: NotificationPreferences = NotificationPreferences(),
+        activityLogVisibility: ActivityLogVisibility = .allActivity,
         persistActivitySummaries: Bool = true,
         paused: Bool = true
     ) {
@@ -478,6 +553,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.builtInModelStatus = builtInModelStatus
         self.modelTelemetry = modelTelemetry
         self.sampleIntervalSeconds = sampleIntervalSeconds
+        self.samplingStrategy = samplingStrategy
+        self.monitoringRules = monitoringRules
+        self.notificationPreferences = notificationPreferences
+        self.activityLogVisibility = activityLogVisibility
         self.persistActivitySummaries = persistActivitySummaries
         self.paused = paused
     }
@@ -489,6 +568,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         case builtInModelStatus
         case modelTelemetry
         case sampleIntervalSeconds
+        case samplingStrategy
+        case monitoringRules
+        case notificationPreferences
+        case activityLogVisibility
         case persistActivitySummaries
         case paused
     }
@@ -511,6 +594,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         builtInModelStatus = decodedStatus
         modelTelemetry = try container.decodeIfPresent(ModelTelemetry.self, forKey: .modelTelemetry) ?? ModelTelemetry()
         sampleIntervalSeconds = try container.decodeIfPresent(TimeInterval.self, forKey: .sampleIntervalSeconds) ?? 60
+        samplingStrategy = try container.decodeIfPresent(SamplingStrategy.self, forKey: .samplingStrategy) ?? .balanced
+        monitoringRules = try container.decodeIfPresent(MonitoringRules.self, forKey: .monitoringRules) ?? MonitoringRules()
+        notificationPreferences = try container.decodeIfPresent(NotificationPreferences.self, forKey: .notificationPreferences) ?? NotificationPreferences()
+        activityLogVisibility = try container.decodeIfPresent(ActivityLogVisibility.self, forKey: .activityLogVisibility) ?? .allActivity
         persistActivitySummaries = try container.decodeIfPresent(Bool.self, forKey: .persistActivitySummaries) ?? true
         paused = try container.decodeIfPresent(Bool.self, forKey: .paused) ?? true
     }

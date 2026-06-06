@@ -30,6 +30,8 @@ struct DashboardView: View {
                     TimelinePanel()
                 case .missionDetails:
                     MissionDetailsPanel()
+                case .alerts:
+                    AlertsPanel()
                 }
             }
             .frame(maxWidth: 980, alignment: .leading)
@@ -46,6 +48,7 @@ struct DashboardView: View {
                 } label: {
                     Label(model.settings.paused ? "Begin Quest" : "Pause Quest", systemImage: model.settings.paused ? "play.fill" : "pause.fill")
                 }
+                .help(model.settings.paused ? "Resume tracking" : "Pause tracking")
 
                 Button {
                     Task { await model.sampleNow(manual: true) }
@@ -53,10 +56,12 @@ struct DashboardView: View {
                     Label("Scout Now", systemImage: "camera.metering.matrix")
                 }
                 .disabled(model.isSampling)
+                .help("Run one screen check now")
 
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
+                .help("Open settings")
             }
         }
         .onAppear {
@@ -76,6 +81,7 @@ struct DashboardView: View {
 private enum DashboardTab: String, CaseIterable, Identifiable {
     case overview
     case missionDetails
+    case alerts
 
     var id: String { rawValue }
 
@@ -83,6 +89,7 @@ private enum DashboardTab: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "Overview"
         case .missionDetails: "Mission Details"
+        case .alerts: "Alerts"
         }
     }
 
@@ -90,6 +97,7 @@ private enum DashboardTab: String, CaseIterable, Identifiable {
         switch self {
         case .overview: "gauge.with.dots.needle.67percent"
         case .missionDetails: "square.and.pencil"
+        case .alerts: "bell.badge"
         }
     }
 }
@@ -241,30 +249,18 @@ private struct MissionDetailsPanel: View {
                     .foregroundStyle(.secondary)
             }
 
-            if let draft {
+            if draft != nil {
                 Form {
                     Section("Mission") {
-                        TextField("Title", text: draftBinding(\.title))
-                        TextField("Intent", text: draftBinding(\.description), axis: .vertical)
-                            .lineLimit(3...5)
+                        TextField("Goal", text: draftBinding(\.title))
+                        DashboardDescriptionTaskList(draft: draftBinding())
                         Toggle("Active mission", isOn: draftBinding(\.isActive))
-                        Stepper(value: draftBinding(\.dailyTargetMinutes), in: 15...720, step: 15) {
-                            Text("\(draft.dailyTargetMinutes)m daily target")
-                        }
+                        DashboardDailyTargetFields(minutes: draftBinding(\.dailyTargetMinutes))
                     }
 
                     Section("Quest Hours") {
                         DashboardWeekdayPicker(selection: draftBinding(\.weekdays))
-                        Picker("Start", selection: draftBinding(\.startMinute)) {
-                            ForEach(DashboardMissionDraft.timeOptions, id: \.self) { minute in
-                                Text(DashboardMissionDraft.timeString(minute)).tag(minute)
-                            }
-                        }
-                        Picker("End", selection: draftBinding(\.endMinute)) {
-                            ForEach(DashboardMissionDraft.timeOptions, id: \.self) { minute in
-                                Text(DashboardMissionDraft.timeString(minute)).tag(minute)
-                            }
-                        }
+                        DashboardTimeRangeFields(startMinute: draftBinding(\.startMinute), endMinute: draftBinding(\.endMinute))
                     }
 
                     Section("Scout Hints") {
@@ -320,6 +316,13 @@ private struct MissionDetailsPanel: View {
         )
     }
 
+    private func draftBinding() -> Binding<DashboardMissionDraft> {
+        Binding(
+            get: { draft! },
+            set: { value in draft = value }
+        )
+    }
+
     private func syncDraftFromSelection() {
         if let goal = model.selectedGoal {
             draft = DashboardMissionDraft(goal: goal)
@@ -339,11 +342,87 @@ private struct MissionDetailsPanel: View {
     }
 }
 
+private struct AlertsPanel: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Alerts", systemImage: "bell.badge")
+                .font(.title3.bold())
+
+            Toggle(
+                "Alert on sustained drift",
+                isOn: Binding(
+                    get: { model.settings.notificationPreferences.notifyOnSustainedDrift },
+                    set: { enabled in
+                        var preferences = model.settings.notificationPreferences
+                        preferences.notifyOnSustainedDrift = enabled
+                        model.updateNotificationPreferences(preferences)
+                    }
+                )
+            )
+
+            Toggle(
+                "Alert on model or runtime failures",
+                isOn: Binding(
+                    get: { model.settings.notificationPreferences.notifyOnRuntimeFailure },
+                    set: { enabled in
+                        var preferences = model.settings.notificationPreferences
+                        preferences.notifyOnRuntimeFailure = enabled
+                        model.updateNotificationPreferences(preferences)
+                    }
+                )
+            )
+
+            Divider()
+
+            if let lastError = model.lastError {
+                Label(lastError, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Label("No current alerts", systemImage: "checkmark.circle")
+                    .foregroundStyle(.green)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Sampling")
+                    .font(.headline)
+                Text(model.settings.samplingStrategy.summary)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.orange.opacity(0.16), lineWidth: 1)
+        }
+    }
+}
+
 private struct DashboardWeekdayPicker: View {
     @Binding var selection: Set<Int>
 
     var body: some View {
         HStack(spacing: 6) {
+            Button("All") {
+                selection = Set(DashboardMissionDraft.weekdays.map(\.value))
+            }
+            .buttonStyle(.bordered)
+
+            Button("Weekdays") {
+                selection = Set([2, 3, 4, 5, 6])
+            }
+            .buttonStyle(.bordered)
+
+            Button("Weekend") {
+                selection = Set([1, 7])
+            }
+            .buttonStyle(.bordered)
+
             ForEach(DashboardMissionDraft.weekdays, id: \.value) { day in
                 Button {
                     toggle(day.value)
@@ -367,10 +446,118 @@ private struct DashboardWeekdayPicker: View {
     }
 }
 
+private struct DashboardDescriptionTaskList: View {
+    @Binding var draft: DashboardMissionDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Description / Task")
+                Spacer()
+                Button {
+                    draft.descriptionItems.append("")
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Add task")
+            }
+
+            ForEach(draft.descriptionItems.indices, id: \.self) { index in
+                TextField(inspiration, text: $draft.descriptionItems[index], axis: .vertical)
+                    .lineLimit(1...3)
+            }
+        }
+    }
+
+    private var inspiration: String {
+        let goal = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !goal.isEmpty else { return "Describe one focused task" }
+        return "Work on \(goal)"
+    }
+}
+
+private struct DashboardDailyTargetFields: View {
+    @Binding var minutes: Int
+
+    var body: some View {
+        HStack {
+            Text("Daily target")
+            Spacer()
+            TextField("0", value: hoursBinding, format: .number)
+                .frame(width: 54)
+                .textFieldStyle(.roundedBorder)
+            Text("hours")
+            TextField("60", value: minuteRemainderBinding, format: .number)
+                .frame(width: 54)
+                .textFieldStyle(.roundedBorder)
+            Text("mins")
+        }
+    }
+
+    private var hoursBinding: Binding<Int> {
+        Binding(
+            get: { minutes / 60 },
+            set: { value in minutes = max(15, min(720, value * 60 + minutes % 60)) }
+        )
+    }
+
+    private var minuteRemainderBinding: Binding<Int> {
+        Binding(
+            get: { minutes % 60 },
+            set: { value in minutes = max(15, min(720, (minutes / 60) * 60 + max(0, min(59, value)))) }
+        )
+    }
+}
+
+private struct DashboardTimeRangeFields: View {
+    @Binding var startMinute: Int
+    @Binding var endMinute: Int
+
+    var body: some View {
+        HStack {
+            Text("Start")
+            TextField("09:00", text: startText)
+                .frame(width: 80)
+                .textFieldStyle(.roundedBorder)
+            Text("End")
+            TextField("17:00", text: endText)
+                .frame(width: 80)
+                .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    private var startText: Binding<String> {
+        Binding(
+            get: { Self.string(from: startMinute) },
+            set: { if let minute = Self.minute(from: $0) { startMinute = minute } }
+        )
+    }
+
+    private var endText: Binding<String> {
+        Binding(
+            get: { Self.string(from: endMinute) },
+            set: { if let minute = Self.minute(from: $0) { endMinute = minute } }
+        )
+    }
+
+    private static func string(from minute: Int) -> String {
+        String(format: "%02d:%02d", minute / 60, minute % 60)
+    }
+
+    private static func minute(from text: String) -> Int? {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2, (0...23).contains(parts[0]), (0...59).contains(parts[1]) else {
+            return nil
+        }
+        return parts[0] * 60 + parts[1]
+    }
+}
+
 private struct DashboardMissionDraft: Equatable {
     var id: UUID
     var title: String
     var description: String
+    var descriptionItems: [String]
     var weekdays: Set<Int>
     var startMinute: Int
     var endMinute: Int
@@ -385,6 +572,10 @@ private struct DashboardMissionDraft: Equatable {
         id = goal.id
         title = goal.title
         description = goal.description
+        descriptionItems = Self.list(from: goal.description)
+        if descriptionItems.isEmpty {
+            descriptionItems = [""]
+        }
         weekdays = goal.schedule.weekdays
         startMinute = goal.schedule.startMinute
         endMinute = goal.schedule.endMinute
@@ -404,7 +595,10 @@ private struct DashboardMissionDraft: Equatable {
         Goal(
             id: id,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            description: descriptionItems
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n"),
             schedule: FocusSchedule(weekdays: weekdays, startMinute: startMinute, endMinute: endMinute),
             allowedApps: Self.list(from: allowedAppsText),
             blockedApps: Self.list(from: blockedAppsText),
@@ -614,6 +808,7 @@ private struct TimelinePanel: View {
     private var activityLogEntries: [ActivityLogEntry] {
         DashboardCopy.activityLogEntries(
             from: model.recentSamples,
+            visibility: model.settings.activityLogVisibility,
             setupState: .init(
                 builtInModelReady: model.settings.builtInModelStatus.installState == .ready,
                 screenRecordingGranted: model.screenRecordingPermission.isGranted,
@@ -724,6 +919,7 @@ private struct ActivityLogSetupState {
 private enum DashboardCopy {
     static func activityLogEntries(
         from samples: [ActivitySample],
+        visibility: ActivityLogVisibility = .allActivity,
         setupState: ActivityLogSetupState = ActivityLogSetupState(
             builtInModelReady: false,
             screenRecordingGranted: false,
@@ -748,6 +944,9 @@ private enum DashboardCopy {
                 continue
             }
 
+            if visibility == .focusOnly, sample.focusState == .offGoal {
+                continue
+            }
             entries.append(activityEntry(for: block))
             if entries.count >= 10 {
                 break
