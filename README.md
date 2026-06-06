@@ -27,6 +27,7 @@ Built-in choices:
 - `mlx-community/gemma-4-e2b-it-4bit` - recommended default, about 3.6 GB.
 - `mlx-community/gemma-4-e2b-it-8bit` - higher precision, about 5.9 GB.
 - `mlx-community/gemma-4-e2b-it-bf16` - largest local option, about 10.3 GB.
+- `google/gemma-4-E2B-it-qat-mobile-transformers` - Google's smaller QAT mobile checkpoint, about 1 GB memory footprint, tracked in the app but not installable until the built-in sidecar supports LiteRT or Transformers mobile tensors.
 
 Storage:
 

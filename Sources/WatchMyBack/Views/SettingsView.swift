@@ -105,6 +105,12 @@ struct SettingsView: View {
                 LabeledContent("Size", value: model.selectedBuiltInModelDescriptor.estimatedDownloadSize)
                 LabeledContent("Memory", value: model.selectedBuiltInModelDescriptor.expectedMemory)
 
+                if !model.selectedBuiltInModelDescriptor.isInstallable {
+                    Label(model.selectedBuiltInModelDescriptor.localOnlyNotice, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
                 if let path = model.settings.builtInModelStatus.storagePath {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Storage")
@@ -171,7 +177,7 @@ struct SettingsView: View {
                             systemImage: "arrow.down.circle"
                         )
                     }
-                    .disabled(model.isInstallingBuiltInModel)
+                    .disabled(model.isInstallingBuiltInModel || !model.selectedBuiltInModelDescriptor.isInstallable)
 
                     Button(role: .destructive) {
                         showDeleteConfirmation = true
@@ -185,7 +191,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Test", systemImage: "checkmark.circle")
                     }
-                    .disabled(model.isTestingModel || model.isInstallingBuiltInModel)
+                    .disabled(model.isTestingModel || model.isInstallingBuiltInModel || !model.selectedBuiltInModelDescriptor.isInstallable)
 
                     Button {
                         model.openBuiltInModelsFolder()

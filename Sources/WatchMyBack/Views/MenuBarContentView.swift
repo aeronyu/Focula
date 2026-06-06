@@ -49,7 +49,9 @@ struct MenuBarContentView: View {
                     } label: {
                         Label(
                             descriptor.displayName,
-                            systemImage: descriptor.id == model.selectedBuiltInModelDescriptor.id ? "checkmark" : "cpu"
+                            systemImage: descriptor.id == model.selectedBuiltInModelDescriptor.id
+                                ? "checkmark"
+                                : descriptor.isInstallable ? "cpu" : "exclamationmark.triangle"
                         )
                     }
                 }
@@ -62,7 +64,7 @@ struct MenuBarContentView: View {
             } label: {
                 Label("Test Model", systemImage: "checkmark.circle")
             }
-            .disabled(model.isTestingModel || model.isInstallingBuiltInModel)
+            .disabled(model.isTestingModel || model.isInstallingBuiltInModel || !model.selectedBuiltInModelDescriptor.isInstallable)
 
             if model.settings.modelSelection.provider == .builtInGemma {
                 Button {
@@ -70,7 +72,7 @@ struct MenuBarContentView: View {
                 } label: {
                     Label("Install Built-in Model", systemImage: "arrow.down.circle")
                 }
-                .disabled(model.settings.builtInModelStatus.installState == .ready || model.isInstallingBuiltInModel)
+                .disabled(model.settings.builtInModelStatus.installState == .ready || model.isInstallingBuiltInModel || !model.selectedBuiltInModelDescriptor.isInstallable)
 
                 Button {
                     model.pauseModelRuntime()

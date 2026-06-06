@@ -24,6 +24,18 @@ final class BuiltInRuntimeController {
     }
 
     func currentStatus(for descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) -> ModelRuntimeStatus {
+        guard descriptor.isInstallable else {
+            return ModelRuntimeStatus(
+                provider: .builtInGemma,
+                modelID: descriptor.id,
+                installState: .missing,
+                statusMessage: "\(descriptor.displayName) is not supported by the built-in MLX runtime yet.",
+                storagePath: nil,
+                isVisionCapable: true,
+                isUsable: false
+            )
+        }
+
         do {
             let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
             let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
@@ -73,6 +85,9 @@ final class BuiltInRuntimeController {
     }
 
     func installModel(_ descriptor: BuiltInModelDescriptor) async throws -> ModelRuntimeStatus {
+        guard descriptor.isInstallable else {
+            throw BuiltInRuntimeError.unsupportedModelRuntime(descriptor.displayName)
+        }
         stop()
         let runtimeRoot = try ModelSupportPaths.builtInRuntimeRoot()
         let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
@@ -159,6 +174,10 @@ final class BuiltInRuntimeController {
     }
 
     func ensureRunning(model descriptor: BuiltInModelDescriptor = BuiltInModelCatalog.defaultModel) async throws {
+        guard descriptor.isInstallable else {
+            throw BuiltInRuntimeError.unsupportedModelRuntime(descriptor.displayName)
+        }
+
         if sidecarProcess?.isRunning == true && runningModelID == descriptor.id {
             return
         }
@@ -394,6 +413,7 @@ final class BuiltInRuntimeController {
 
 enum BuiltInRuntimeError: LocalizedError {
     case notInstalled
+    case unsupportedModelRuntime(String)
     case missingPython310
     case missingSidecarScript
     case processFailed(String)
@@ -403,6 +423,8 @@ enum BuiltInRuntimeError: LocalizedError {
         switch self {
         case .notInstalled:
             "Built-in Gemma is not installed."
+        case .unsupportedModelRuntime(let modelName):
+            "\(modelName) is not supported by the built-in MLX runtime yet."
         case .missingPython310:
             "Built-in Gemma requires Python 3.10 or newer to install mlx-vlm 0.4.3."
         case .missingSidecarScript:

@@ -247,6 +247,7 @@ public struct BuiltInModelDescriptor: Codable, Equatable, Identifiable, Sendable
     public var expectedMemory: String
     public var localOnlyNotice: String
     public var isRecommended: Bool
+    public var isInstallable: Bool
 
     public init(
         id: String,
@@ -256,7 +257,8 @@ public struct BuiltInModelDescriptor: Codable, Equatable, Identifiable, Sendable
         estimatedDownloadSize: String,
         expectedMemory: String,
         localOnlyNotice: String,
-        isRecommended: Bool = false
+        isRecommended: Bool = false,
+        isInstallable: Bool = true
     ) {
         self.id = id
         self.displayName = displayName
@@ -266,6 +268,7 @@ public struct BuiltInModelDescriptor: Codable, Equatable, Identifiable, Sendable
         self.expectedMemory = expectedMemory
         self.localOnlyNotice = localOnlyNotice
         self.isRecommended = isRecommended
+        self.isInstallable = isInstallable
     }
 }
 
@@ -301,10 +304,22 @@ public enum BuiltInModelCatalog {
         localOnlyNotice: "Largest built-in option. Use when quality matters more than storage and memory."
     )
 
+    public static let gemma4E2BQATMobileTransformers = BuiltInModelDescriptor(
+        id: "google/gemma-4-E2B-it-qat-mobile-transformers",
+        displayName: "Gemma 4 E2B QAT Mobile",
+        repository: "google/gemma-4-E2B-it-qat-mobile-transformers",
+        precision: "QAT mobile Transformers",
+        estimatedDownloadSize: "about 1 GB memory footprint",
+        expectedMemory: "Not supported by the built-in MLX runtime yet",
+        localOnlyNotice: "Google's smaller QAT mobile checkpoint is tracked here, but Watch My Back cannot run it until the sidecar supports LiteRT or Transformers mobile tensors.",
+        isInstallable: false
+    )
+
     public static let all: [BuiltInModelDescriptor] = [
         gemma4E2B4Bit,
         gemma4E2B8Bit,
-        gemma4E2BBF16
+        gemma4E2BBF16,
+        gemma4E2BQATMobileTransformers
     ]
 
     public static let defaultModel = gemma4E2B4Bit

@@ -20,15 +20,18 @@ final class ModelProviderTests: XCTestCase {
 
     func testBuiltInCatalogIncludesQuantizedGemmaVariants() {
         XCTAssertEqual(BuiltInModelCatalog.defaultModel.id, "mlx-community/gemma-4-e2b-it-4bit")
-        XCTAssertEqual(BuiltInModelCatalog.all.map(\.precision), ["4-bit MLX", "8-bit MLX", "BF16 MLX"])
+        XCTAssertEqual(BuiltInModelCatalog.all.map(\.precision), ["4-bit MLX", "8-bit MLX", "BF16 MLX", "QAT mobile Transformers"])
         XCTAssertEqual(
             BuiltInModelCatalog.all.map(\.repository),
             [
                 "mlx-community/gemma-4-e2b-it-4bit",
                 "mlx-community/gemma-4-e2b-it-8bit",
-                "mlx-community/gemma-4-e2b-it-bf16"
+                "mlx-community/gemma-4-e2b-it-bf16",
+                "google/gemma-4-E2B-it-qat-mobile-transformers"
             ]
         )
+        XCTAssertFalse(BuiltInModelCatalog.gemma4E2BQATMobileTransformers.isInstallable)
+        XCTAssertTrue(BuiltInModelCatalog.defaultModel.isInstallable)
     }
 
     func testLegacyBuiltInModelIDMigratesToDefaultQuantizedModel() throws {

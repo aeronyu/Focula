@@ -34,6 +34,7 @@ struct WatchMyBackApp: App {
                     Task { await model.testSelectedModel() }
                 }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
+                .disabled(!model.selectedBuiltInModelDescriptor.isInstallable)
 
                 Button("Pause Built-in Sidecar") {
                     model.pauseModelRuntime()
