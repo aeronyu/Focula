@@ -255,12 +255,18 @@ private struct GoalEditorSheet: View {
                 }
 
                 Section("Scout Hints") {
-                    AppSelectionField(title: "Helpful apps", text: $draft.allowedAppsText)
-                    AppSelectionField(title: "Distracting apps", text: $draft.blockedAppsText)
-                    TextField("On-quest examples", text: $draft.onGoalExamplesText, axis: .vertical)
-                        .lineLimit(2...3)
-                    TextField("Off-quest examples", text: $draft.offGoalExamplesText, axis: .vertical)
-                        .lineLimit(2...3)
+                    AppHintCardList(
+                        title: "Helpful apps",
+                        systemImage: "checkmark.circle",
+                        cards: $draft.helpfulAppCards,
+                        fallbackBehavior: "Focused work in this app"
+                    )
+                    AppHintCardList(
+                        title: "Distracting apps",
+                        systemImage: "exclamationmark.triangle",
+                        cards: $draft.distractingAppCards,
+                        fallbackBehavior: "Side-tracked activity in this app"
+                    )
                 }
             }
             .formStyle(.grouped)
@@ -349,12 +355,10 @@ private struct DescriptionTaskList: View {
 
             ForEach(draft.descriptionItems.indices, id: \.self) { index in
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("•")
+                    Circle()
                         .foregroundStyle(.secondary)
-                        .frame(width: 10)
-                    TextField("", text: $draft.descriptionItems[index], prompt: Text(inspiration), axis: .vertical)
-                        .lineLimit(1...3)
-                        .textFieldStyle(.plain)
+                        .frame(width: 6, height: 6)
+                    LeftAlignedPlainField(text: $draft.descriptionItems[index], placeholder: inspiration)
 
                     if index > 0 {
                         Button(role: .destructive) {
@@ -418,8 +422,35 @@ private struct TimeRangeFields: View {
     @State private var selectedPreset: QuestHoursPreset = .custom
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                presets
+                Spacer(minLength: 12)
+                if selectedPreset == .custom {
+                    customFields
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                presets
+                if selectedPreset == .custom {
+                    customFields
+                }
+            }
+        }
+        .onAppear {
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+        }
+        .onChange(of: startMinute) { _, _ in
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+        }
+        .onChange(of: endMinute) { _, _ in
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+        }
+    }
+
+    private var presets: some View {
+        HStack(spacing: 8) {
                 ForEach(QuestHoursPreset.allCases) { preset in
                     Button(preset.label) {
                         selectedPreset = preset
@@ -433,30 +464,20 @@ private struct TimeRangeFields: View {
                     .tint(selectedPreset == preset ? .green : .secondary)
                 }
             }
+    }
 
-            if selectedPreset == .custom {
-                HStack(alignment: .center, spacing: 8) {
-                    Image(systemName: "clock")
-                        .foregroundStyle(.secondary)
-                    TextField("", text: startText)
-                        .frame(width: 86)
-                        .textFieldStyle(.roundedBorder)
-                    Text("-")
-                        .foregroundStyle(.secondary)
-                    TextField("", text: endText)
-                        .frame(width: 86)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-        }
-        .onAppear {
-            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
-        }
-        .onChange(of: startMinute) { _, _ in
-            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
-        }
-        .onChange(of: endMinute) { _, _ in
-            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+    private var customFields: some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "clock")
+                .foregroundStyle(.secondary)
+            TextField("", text: startText)
+                .frame(width: 86)
+                .textFieldStyle(.roundedBorder)
+            Text("-")
+                .foregroundStyle(.secondary)
+            TextField("", text: endText)
+                .frame(width: 86)
+                .textFieldStyle(.roundedBorder)
         }
     }
 
@@ -521,24 +542,37 @@ private enum QuestHoursPreset: String, CaseIterable, Identifiable {
     }
 }
 
-private struct AppSelectionField: View {
+private struct AppHintCardList: View {
     let title: String
-    @Binding var text: String
+    let systemImage: String
+    @Binding var cards: [AppHintCardDraft]
+    let fallbackBehavior: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text(title)
+                Label(title, systemImage: systemImage)
                 Spacer()
                 Button {
                     chooseApps()
                 } label: {
-                    Label("Choose Apps", systemImage: "folder.badge.plus")
+                    Image(systemName: "plus")
                 }
-                .help("Choose one or more apps")
+                .buttonStyle(.borderless)
+                .help("Add apps")
             }
-            TextField(title, text: $text, axis: .vertical)
-                .lineLimit(1...3)
+
+            if cards.isEmpty {
+                Text("Add apps to teach Scout how this mission uses them.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach($cards) { $card in
+                AppHintCard(card: $card, fallbackBehavior: fallbackBehavior) {
+                    cards.removeAll { $0.id == card.id }
+                }
+            }
         }
     }
 
@@ -552,9 +586,80 @@ private struct AppSelectionField: View {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         if panel.runModal() == .OK {
             let selected = panel.urls.map { $0.deletingPathExtension().lastPathComponent }
-            let existing = GoalDraft.list(from: text)
-            text = (existing + selected).uniqued().joined(separator: ", ")
+            let existing = Set(cards.map(\.appName))
+            cards.append(contentsOf: selected.filter { !existing.contains($0) }.map {
+                AppHintCardDraft(appName: $0, behaviors: [""])
+            })
         }
+    }
+}
+
+private struct AppHintCard: View {
+    @Binding var card: AppHintCardDraft
+    let fallbackBehavior: String
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(card.appName, systemImage: "app")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    card.behaviors.append("")
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(.borderless)
+                .help("Add behavior")
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Remove app")
+            }
+
+            ForEach(card.behaviors.indices, id: \.self) { index in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Circle()
+                        .foregroundStyle(.secondary)
+                        .frame(width: 5, height: 5)
+                    LeftAlignedPlainField(text: $card.behaviors[index], placeholder: fallbackBehavior)
+                    if index > 0 {
+                        Button(role: .destructive) {
+                            card.behaviors.remove(at: index)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove behavior")
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct LeftAlignedPlainField: View {
+    @Binding var text: String
+    let placeholder: String
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundStyle(.tertiary)
+                    .allowsHitTesting(false)
+            }
+
+            TextField("", text: $text, axis: .vertical)
+                .lineLimit(1...3)
+                .multilineTextAlignment(.leading)
+                .textFieldStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -568,10 +673,8 @@ private struct GoalDraft: Identifiable {
     var endMinute: Int
     var dailyTargetMinutes: Int
     var isActive: Bool
-    var allowedAppsText: String
-    var blockedAppsText: String
-    var onGoalExamplesText: String
-    var offGoalExamplesText: String
+    var helpfulAppCards: [AppHintCardDraft]
+    var distractingAppCards: [AppHintCardDraft]
 
     init(goal: Goal) {
         id = goal.id
@@ -586,10 +689,8 @@ private struct GoalDraft: Identifiable {
         endMinute = goal.schedule.endMinute
         dailyTargetMinutes = goal.dailyTargetMinutes
         isActive = goal.isActive
-        allowedAppsText = goal.allowedApps.joined(separator: ", ")
-        blockedAppsText = goal.blockedApps.joined(separator: ", ")
-        onGoalExamplesText = goal.onGoalExamples.joined(separator: "\n")
-        offGoalExamplesText = goal.offGoalExamples.joined(separator: "\n")
+        helpfulAppCards = Self.cards(apps: goal.allowedApps, examples: goal.onGoalExamples)
+        distractingAppCards = Self.cards(apps: goal.blockedApps, examples: goal.offGoalExamples)
     }
 
     static func newMission() -> GoalDraft {
@@ -621,10 +722,10 @@ private struct GoalDraft: Identifiable {
                 .filter { !$0.isEmpty }
                 .joined(separator: "\n"),
             schedule: FocusSchedule(weekdays: weekdays, startMinute: startMinute, endMinute: endMinute),
-            allowedApps: Self.list(from: allowedAppsText),
-            blockedApps: Self.list(from: blockedAppsText),
-            onGoalExamples: Self.list(from: onGoalExamplesText),
-            offGoalExamples: Self.list(from: offGoalExamplesText),
+            allowedApps: helpfulAppCards.map(\.appName).filter { !$0.isEmpty }.uniqued(),
+            blockedApps: distractingAppCards.map(\.appName).filter { !$0.isEmpty }.uniqued(),
+            onGoalExamples: Self.examples(from: helpfulAppCards),
+            offGoalExamples: Self.examples(from: distractingAppCards),
             dailyTargetMinutes: dailyTargetMinutes,
             isActive: isActive
         )
@@ -667,6 +768,39 @@ private struct GoalDraft: Identifiable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
     }
+
+    private static func cards(apps: [String], examples: [String]) -> [AppHintCardDraft] {
+        apps.map { app in
+            AppHintCardDraft(
+                appName: app,
+                behaviors: examplesForApp(app, examples: examples)
+            )
+        }
+    }
+
+    private static func examplesForApp(_ app: String, examples: [String]) -> [String] {
+        let prefix = "\(app):"
+        let matched = examples.compactMap { example -> String? in
+            guard example.localizedCaseInsensitiveContains(prefix) else { return nil }
+            return String(example.dropFirst(prefix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return matched.isEmpty ? [""] : matched
+    }
+
+    private static func examples(from cards: [AppHintCardDraft]) -> [String] {
+        cards.flatMap { card in
+            card.behaviors
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .map { "\(card.appName): \($0)" }
+        }
+    }
+}
+
+private struct AppHintCardDraft: Identifiable, Equatable {
+    var id = UUID()
+    var appName: String
+    var behaviors: [String]
 }
 
 private extension Array where Element == String {
