@@ -2,6 +2,12 @@
 
 Watch My Back is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a built-in local Gemma vision model, and nudges you when your work drifts off mission.
 
+## Screenshots
+
+![Dashboard overview showing the active mission, focus metrics, and local activity log](docs/screenshots/dashboard.png)
+
+![Settings view showing the built-in Gemma runtime, model storage, permissions, privacy, and sampling controls](docs/screenshots/settings.png)
+
 ## Privacy model
 
 - Screenshot frames are captured only for local classification.
