@@ -335,21 +335,26 @@ private struct DescriptionTaskList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Description / Task")
+                Text(draft.descriptionItems.count == 1 ? "Task" : "Tasks")
                 Spacer()
                 Button {
                     draft.descriptionItems.append("")
                 } label: {
                     Image(systemName: "plus")
                 }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
                 .help("Add task")
             }
 
             ForEach(draft.descriptionItems.indices, id: \.self) { index in
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("•")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 10)
                     TextField("", text: $draft.descriptionItems[index], prompt: Text(inspiration), axis: .vertical)
                         .lineLimit(1...3)
-                        .textFieldStyle(.roundedBorder)
+                        .textFieldStyle(.plain)
 
                     if index > 0 {
                         Button(role: .destructive) {
@@ -376,10 +381,10 @@ private struct DailyTargetFields: View {
     @Binding var minutes: Int
 
     var body: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 8) {
-            Text("Daily target")
-                .gridCellColumns(4)
+        Grid(alignment: .center, horizontalSpacing: 10, verticalSpacing: 0) {
             GridRow {
+            Text("Daily target")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 TextField("", value: hoursBinding, format: .number)
                     .frame(width: 64)
                     .textFieldStyle(.roundedBorder)
@@ -410,19 +415,48 @@ private struct DailyTargetFields: View {
 private struct TimeRangeFields: View {
     @Binding var startMinute: Int
     @Binding var endMinute: Int
+    @State private var selectedPreset: QuestHoursPreset = .custom
 
     var body: some View {
-        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
-            GridRow {
-                Text("Start")
-                TextField("", text: startText)
-                    .frame(width: 86)
-                    .textFieldStyle(.roundedBorder)
-                Text("End")
-                TextField("", text: endText)
-                    .frame(width: 86)
-                    .textFieldStyle(.roundedBorder)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ForEach(QuestHoursPreset.allCases) { preset in
+                    Button(preset.label) {
+                        selectedPreset = preset
+                        if let range = preset.range {
+                            startMinute = range.start
+                            endMinute = range.end
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .tint(selectedPreset == preset ? .green : .secondary)
+                }
             }
+
+            if selectedPreset == .custom {
+                HStack(alignment: .center, spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundStyle(.secondary)
+                    TextField("", text: startText)
+                        .frame(width: 86)
+                        .textFieldStyle(.roundedBorder)
+                    Text("-")
+                        .foregroundStyle(.secondary)
+                    TextField("", text: endText)
+                        .frame(width: 86)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
+        .onAppear {
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+        }
+        .onChange(of: startMinute) { _, _ in
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
+        }
+        .onChange(of: endMinute) { _, _ in
+            selectedPreset = QuestHoursPreset.matching(start: startMinute, end: endMinute)
         }
     }
 
@@ -450,6 +484,40 @@ private struct TimeRangeFields: View {
             return nil
         }
         return parts[0] * 60 + parts[1]
+    }
+}
+
+private enum QuestHoursPreset: String, CaseIterable, Identifiable {
+    case morning
+    case afternoon
+    case night
+    case allDay
+    case custom
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .morning: "Morning"
+        case .afternoon: "Afternoon"
+        case .night: "Night"
+        case .allDay: "All day"
+        case .custom: "Custom"
+        }
+    }
+
+    var range: (start: Int, end: Int)? {
+        switch self {
+        case .morning: (6 * 60, 12 * 60)
+        case .afternoon: (12 * 60, 17 * 60)
+        case .night: (18 * 60, 23 * 60 + 45)
+        case .allDay: (0, 23 * 60 + 59)
+        case .custom: nil
+        }
+    }
+
+    static func matching(start: Int, end: Int) -> QuestHoursPreset {
+        allCases.first { $0.range?.start == start && $0.range?.end == end } ?? .custom
     }
 }
 

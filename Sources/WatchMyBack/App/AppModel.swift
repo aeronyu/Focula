@@ -28,6 +28,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var isTestingModel = false
     @Published private(set) var screenRecordingPermission = ScreenCapturePermissionDiagnostics.current()
     @Published private(set) var builtInModelFolders: [BuiltInModelFolder] = []
+    @Published private(set) var isSystemSleeping = false
 
     private var store: DatabaseStore?
     private let appProvider: FrontmostAppProviding
@@ -39,6 +40,7 @@ final class AppModel: ObservableObject {
     private let activityWindowAnalyzer = ActivityWindowAnalyzer()
     private var timer: Timer?
     private var permissionRefreshTimer: Timer?
+    private var sleepWakeObservers: [NSObjectProtocol] = []
     private var screenshotContextFrames: [ScreenshotContextFrame] = []
     private var lastSampleAt: Date?
 
@@ -69,6 +71,7 @@ final class AppModel: ObservableObject {
 
         refreshRuntimeStatuses()
         refreshBuiltInModelFolders()
+        startSleepWakeObservers()
         startPermissionRefreshTimer()
         NotificationNudgePresenter.shared.requestAuthorization()
         updateIdleTrackingStatus()
@@ -285,6 +288,7 @@ final class AppModel: ObservableObject {
 
     func shutdown() {
         stopTimer()
+        stopSleepWakeObservers()
         builtInRuntime.stop()
     }
 
@@ -317,7 +321,7 @@ final class AppModel: ObservableObject {
     func updateSampleInterval(_ value: TimeInterval) {
         settings.sampleIntervalSeconds = min(max(15, value), 300)
         saveSettings()
-        if !settings.paused {
+        if !settings.paused && !isSystemSleeping {
             stopTimer()
             startTimer()
         }
@@ -326,7 +330,7 @@ final class AppModel: ObservableObject {
     func updateSamplingStrategy(_ value: SamplingStrategy) {
         settings.samplingStrategy = value
         saveSettings()
-        if !settings.paused {
+        if !settings.paused && !isSystemSleeping {
             stopTimer()
             startTimer()
         }
@@ -461,13 +465,19 @@ final class AppModel: ObservableObject {
             updateIdleTrackingStatus()
         } else {
             updateIdleTrackingStatus()
-            startTimer()
+            if !isSystemSleeping {
+                startTimer()
+            }
             Task { await sampleNow(manual: true) }
         }
     }
 
     func sampleNow(manual: Bool = false) async {
         guard !isSampling else { return }
+        guard !isSystemSleeping else {
+            statusMessage = "Quiet: Mac is sleeping. Tracking resumes after wake."
+            return
+        }
         guard let goal = activeGoal else {
             statusMessage = "No active goal. Add a goal before tracking."
             return
@@ -669,7 +679,9 @@ final class AppModel: ObservableObject {
     }
 
     private func updateIdleTrackingStatus() {
-        if settings.paused {
+        if isSystemSleeping {
+            statusMessage = "Quiet: Mac is sleeping. Tracking resumes after wake."
+        } else if settings.paused {
             statusMessage = "Paused. No screenshots or activity samples are being captured."
         } else if let activeGoal {
             statusMessage = "Tracking focus hours for \(activeGoal.title). Screenshots are classified locally and discarded."
@@ -739,13 +751,14 @@ final class AppModel: ObservableObject {
 
     private func startTimer() {
         stopTimer()
+        guard !isSystemSleeping else { return }
         let interval = nextSampleInterval()
         guard interval > 0 else { return }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 guard let self else { return }
                 await self.sampleNow()
-                if !self.settings.paused {
+                if !self.settings.paused && !self.isSystemSleeping {
                     self.startTimer()
                 }
             }
@@ -823,6 +836,53 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 self?.refreshScreenRecordingPermission()
             }
+        }
+    }
+
+    private func startSleepWakeObservers() {
+        stopSleepWakeObservers()
+        let center = NSWorkspace.shared.notificationCenter
+        sleepWakeObservers = [
+            center.addObserver(
+                forName: NSWorkspace.willSleepNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleSystemWillSleep()
+                }
+            },
+            center.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor in
+                    self?.handleSystemDidWake()
+                }
+            }
+        ]
+    }
+
+    private func stopSleepWakeObservers() {
+        sleepWakeObservers.forEach(NSWorkspace.shared.notificationCenter.removeObserver)
+        sleepWakeObservers.removeAll()
+    }
+
+    private func handleSystemWillSleep() {
+        isSystemSleeping = true
+        stopTimer()
+        builtInRuntime.stop()
+        statusMessage = "Quiet: Mac is sleeping. Tracking resumes after wake."
+        refreshRuntimeStatuses()
+    }
+
+    private func handleSystemDidWake() {
+        isSystemSleeping = false
+        updateIdleTrackingStatus()
+        refreshRuntimeStatuses()
+        if !settings.paused {
+            startTimer()
         }
     }
 
