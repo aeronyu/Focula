@@ -21,7 +21,7 @@ struct DashboardView: View {
                     MissionHeroCard()
 
                     LazyVGrid(columns: metricColumns, alignment: .leading, spacing: 14) {
-                        FocusRingCard()
+                        QuestSyncWaterCard()
                         MetricTile(title: "Focus Time", value: DisplayFormatters.minutes(model.stats.focusSeconds), subtitle: "aligned today", icon: "bolt.fill", tint: .mint)
                         MetricTile(title: "Comebacks", value: "\(model.stats.recoveryCount)", subtitle: "course corrections", icon: "arrow.uturn.backward.circle.fill", tint: .orange)
                         MetricTile(title: "XP", value: "\(model.stats.xp)", subtitle: "mission points", icon: "sparkles", tint: .pink)
@@ -174,7 +174,7 @@ private struct MissionHeroCard: View {
                 Text(model.statusMessage)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -182,13 +182,6 @@ private struct MissionHeroCard: View {
 
     private var statusBlock: some View {
         VStack(alignment: .trailing, spacing: 8) {
-            Label(model.lastFocusState.label, systemImage: model.lastFocusState.symbolName)
-                .font(.callout.bold())
-                .foregroundStyle(heroAccent)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 7)
-                .background(heroAccent.opacity(0.12), in: Capsule())
-
             HStack(spacing: 8) {
                 Text("Level \(missionLevel)")
                     .font(.title3.weight(.bold))
@@ -244,9 +237,6 @@ private struct MissionDetailsPanel: View {
                 Label("Mission Details", systemImage: "square.and.pencil")
                     .font(.title3.bold())
                 Spacer()
-                Text("autosaves")
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
             }
 
             if draft != nil {
@@ -264,14 +254,10 @@ private struct MissionDetailsPanel: View {
                     }
 
                     Section("Scout Hints") {
-                        TextField("Helpful apps", text: draftBinding(\.allowedAppsText), axis: .vertical)
-                            .lineLimit(1...3)
-                        TextField("Distracting apps", text: draftBinding(\.blockedAppsText), axis: .vertical)
-                            .lineLimit(1...3)
-                        TextField("On-quest examples", text: draftBinding(\.onGoalExamplesText), axis: .vertical)
-                            .lineLimit(2...3)
-                        TextField("Off-quest examples", text: draftBinding(\.offGoalExamplesText), axis: .vertical)
-                            .lineLimit(2...3)
+                        DashboardHintField(title: "Helpful apps", text: draftBinding(\.allowedAppsText), lineLimit: 1...3)
+                        DashboardHintField(title: "Distracting apps", text: draftBinding(\.blockedAppsText), lineLimit: 1...3)
+                        DashboardHintField(title: "On-quest examples", text: draftBinding(\.onGoalExamplesText), lineLimit: 2...3)
+                        DashboardHintField(title: "Off-quest examples", text: draftBinding(\.offGoalExamplesText), lineLimit: 2...3)
                     }
                 }
                 .formStyle(.grouped)
@@ -342,6 +328,19 @@ private struct MissionDetailsPanel: View {
     }
 }
 
+private struct DashboardHintField: View {
+    let title: String
+    @Binding var text: String
+    let lineLimit: ClosedRange<Int>
+
+    var body: some View {
+        TextField(title, text: $text, prompt: Text("Add \(title.lowercased())"), axis: .vertical)
+            .lineLimit(lineLimit)
+            .textFieldStyle(.roundedBorder)
+            .padding(.vertical, 2)
+    }
+}
+
 private struct AlertsPanel: View {
     @EnvironmentObject private var model: AppModel
 
@@ -407,34 +406,33 @@ private struct DashboardWeekdayPicker: View {
     @Binding var selection: Set<Int>
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button("All") {
-                selection = Set(DashboardMissionDraft.weekdays.map(\.value))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                quickButton("All") { selection = Set(DashboardMissionDraft.weekdays.map(\.value)) }
+                quickButton("Weekdays") { selection = Set([2, 3, 4, 5, 6]) }
+                quickButton("Weekend") { selection = Set([1, 7]) }
             }
-            .buttonStyle(.bordered)
 
-            Button("Weekdays") {
-                selection = Set([2, 3, 4, 5, 6])
-            }
-            .buttonStyle(.bordered)
-
-            Button("Weekend") {
-                selection = Set([1, 7])
-            }
-            .buttonStyle(.bordered)
-
-            ForEach(DashboardMissionDraft.weekdays, id: \.value) { day in
-                Button {
-                    toggle(day.value)
-                } label: {
-                    Text(day.label)
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 34, height: 28)
+            HStack(spacing: 8) {
+                ForEach(DashboardMissionDraft.weekdays, id: \.value) { day in
+                    Button {
+                        toggle(day.value)
+                    } label: {
+                        Text(day.label)
+                            .font(.caption.weight(.semibold))
+                            .frame(width: 42, height: 28)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(selection.contains(day.value) ? .green : .secondary)
                 }
-                .buttonStyle(.bordered)
-                .tint(selection.contains(day.value) ? .green : .secondary)
             }
         }
+    }
+
+    private func quickButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
     }
 
     private func toggle(_ weekday: Int) {
@@ -463,8 +461,21 @@ private struct DashboardDescriptionTaskList: View {
             }
 
             ForEach(draft.descriptionItems.indices, id: \.self) { index in
-                TextField(inspiration, text: $draft.descriptionItems[index], axis: .vertical)
-                    .lineLimit(1...3)
+                HStack(alignment: .top, spacing: 8) {
+                    TextField("", text: $draft.descriptionItems[index], prompt: Text(inspiration), axis: .vertical)
+                        .lineLimit(1...3)
+                        .textFieldStyle(.roundedBorder)
+
+                    if index > 0 {
+                        Button(role: .destructive) {
+                            draft.descriptionItems.remove(at: index)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove task")
+                    }
+                }
             }
         }
     }
@@ -480,17 +491,19 @@ private struct DashboardDailyTargetFields: View {
     @Binding var minutes: Int
 
     var body: some View {
-        HStack {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 8) {
             Text("Daily target")
-            Spacer()
-            TextField("0", value: hoursBinding, format: .number)
-                .frame(width: 54)
-                .textFieldStyle(.roundedBorder)
-            Text("hours")
-            TextField("60", value: minuteRemainderBinding, format: .number)
-                .frame(width: 54)
-                .textFieldStyle(.roundedBorder)
-            Text("mins")
+                .gridCellColumns(4)
+            GridRow {
+                TextField("", value: hoursBinding, format: .number)
+                    .frame(width: 64)
+                    .textFieldStyle(.roundedBorder)
+                Text("hours")
+                TextField("", value: minuteRemainderBinding, format: .number)
+                    .frame(width: 64)
+                    .textFieldStyle(.roundedBorder)
+                Text("mins")
+            }
         }
     }
 
@@ -514,15 +527,17 @@ private struct DashboardTimeRangeFields: View {
     @Binding var endMinute: Int
 
     var body: some View {
-        HStack {
-            Text("Start")
-            TextField("09:00", text: startText)
-                .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
-            Text("End")
-            TextField("17:00", text: endText)
-                .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
+            GridRow {
+                Text("Start")
+                TextField("", text: startText)
+                    .frame(width: 86)
+                    .textFieldStyle(.roundedBorder)
+                Text("End")
+                TextField("", text: endText)
+                    .frame(width: 86)
+                    .textFieldStyle(.roundedBorder)
+            }
         }
     }
 
@@ -674,7 +689,7 @@ private struct PermissionStatusBanner: View {
     }
 }
 
-private struct FocusRingCard: View {
+private struct QuestSyncWaterCard: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
@@ -689,16 +704,11 @@ private struct FocusRingCard: View {
                     .padding(.vertical, 5)
                     .background(.green.opacity(0.14), in: Capsule())
             }
-            GeometryReader { proxy in
-                let ringSize = min(proxy.size.width, proxy.size.height)
-                ZStack {
-                    Circle()
-                        .stroke(.white.opacity(0.45), lineWidth: max(8, ringSize * 0.10))
-                    Circle()
-                        .trim(from: 0, to: min(model.stats.focusRatio, 1))
-                        .stroke(.green, style: StrokeStyle(lineWidth: max(8, ringSize * 0.10), lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    VStack(spacing: 4) {
+
+            WaterLevelView(progress: model.stats.focusRatio)
+                .frame(height: 92)
+                .overlay(alignment: .center) {
+                    VStack(spacing: 3) {
                         Text(DisplayFormatters.percent(model.stats.focusRatio))
                             .font(.title.bold())
                         Text("aligned")
@@ -706,12 +716,8 @@ private struct FocusRingCard: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: ringSize, height: ringSize)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 98)
-        }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .frame(height: 154, alignment: .topLeading)
@@ -724,6 +730,71 @@ private struct FocusRingCard: View {
 
     private var syncBadge: String {
         model.stats.focusRatio >= 0.7 ? "Steady" : "Building"
+    }
+}
+
+private struct WaterLevelView: View {
+    let progress: Double
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            let clamped = min(max(progress, 0), 1)
+            let visibleLevel = max(0.06, clamped)
+            let waterTop = proxy.size.height * (1 - visibleLevel)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(.white.opacity(0.08))
+
+                WaveShape(phase: phase, amplitude: 5, waterTop: waterTop)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.cyan.opacity(0.55), Color.mint.opacity(0.72)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                WaveShape(phase: phase + .pi, amplitude: 3, waterTop: waterTop + 4)
+                    .fill(Color.mint.opacity(0.28))
+            }
+            .onAppear {
+                withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) {
+                    phase = .pi * 2
+                }
+            }
+        }
+    }
+}
+
+private struct WaveShape: Shape {
+    var phase: CGFloat
+    var amplitude: CGFloat
+    var waterTop: CGFloat
+
+    var animatableData: CGFloat {
+        get { phase }
+        set { phase = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: waterTop))
+
+        let step: CGFloat = 6
+        var x = rect.minX
+        while x <= rect.maxX + step {
+            let relative = x / max(rect.width, 1)
+            let y = waterTop + sin(relative * .pi * 2 + phase) * amplitude
+            path.addLine(to: CGPoint(x: x, y: y))
+            x += step
+        }
+
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 

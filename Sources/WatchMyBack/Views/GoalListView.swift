@@ -11,40 +11,25 @@ struct GoalListView: View {
     var body: some View {
         List(selection: $model.selectedGoalID) {
             Section {
-                ForEach(model.goals) { goal in
+                ForEach(primaryGoals) { goal in
                     GoalRow(goal: goal)
                         .tag(goal.id as UUID?)
-                        .contextMenu {
-                            Button {
-                                editingDraft = GoalDraft(goal: goal)
-                            } label: {
-                                Label("Edit Mission", systemImage: "pencil")
-                            }
-
-                            Button {
-                                model.duplicateMission(goal)
-                            } label: {
-                                Label("Duplicate Mission", systemImage: "plus.square.on.square")
-                            }
-
-                            Button {
-                                model.activateMission(goal)
-                            } label: {
-                                Label("Make Active", systemImage: "scope")
-                            }
-                            .disabled(goal.isActive)
-
-                            Button(role: .destructive) {
-                                missionPendingDelete = goal
-                            } label: {
-                                Label("Remove Mission", systemImage: "trash")
-                            }
-                        }
+                        .contextMenu { missionContextMenu(for: goal) }
                 }
             } header: {
                 HStack(spacing: 6) {
                     Text("Missions")
                     TrackingStatusDot()
+                }
+            }
+
+            if shouldShowNotTrackingToday {
+                Section("Not Tracking Today") {
+                    ForEach(notTrackingTodayGoals) { goal in
+                        GoalRow(goal: goal)
+                            .tag(goal.id as UUID?)
+                            .contextMenu { missionContextMenu(for: goal) }
+                    }
                 }
             }
         }
@@ -109,6 +94,55 @@ struct GoalListView: View {
         }
         return "This removes \"\(missionPendingDelete.title)\" from your mission list. Past activity samples remain as history."
     }
+
+    private var todayWeekday: Int {
+        Calendar.current.component(.weekday, from: Date())
+    }
+
+    private var primaryGoals: [Goal] {
+        let scheduledToday = todayGoals
+        return scheduledToday.isEmpty ? model.goals : scheduledToday
+    }
+
+    private var todayGoals: [Goal] {
+        model.goals.filter { $0.schedule.weekdays.contains(todayWeekday) }
+    }
+
+    private var notTrackingTodayGoals: [Goal] {
+        model.goals.filter { !$0.schedule.weekdays.contains(todayWeekday) }
+    }
+
+    private var shouldShowNotTrackingToday: Bool {
+        model.goals.count > 1 && !todayGoals.isEmpty && !notTrackingTodayGoals.isEmpty
+    }
+
+    @ViewBuilder
+    private func missionContextMenu(for goal: Goal) -> some View {
+        Button {
+            editingDraft = GoalDraft(goal: goal)
+        } label: {
+            Label("Edit Mission", systemImage: "pencil")
+        }
+
+        Button {
+            model.duplicateMission(goal)
+        } label: {
+            Label("Duplicate Mission", systemImage: "plus.square.on.square")
+        }
+
+        Button {
+            model.activateMission(goal)
+        } label: {
+            Label("Make Active", systemImage: "scope")
+        }
+        .disabled(goal.isActive)
+
+        Button(role: .destructive) {
+            missionPendingDelete = goal
+        } label: {
+            Label("Remove Mission", systemImage: "trash")
+        }
+    }
 }
 
 private struct TrackingStatusDot: View {
@@ -127,7 +161,8 @@ private struct TrackingStatusDot: View {
                 Text(statusText)
                     .font(.callout)
                     .padding(12)
-                    .frame(width: 220, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 340, alignment: .leading)
             }
     }
 
@@ -256,34 +291,33 @@ private struct WeekdayPicker: View {
     @Binding var selection: Set<Int>
 
     var body: some View {
-        HStack(spacing: 6) {
-            Button("All") {
-                selection = Set(GoalDraft.weekdays.map(\.value))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                quickButton("All") { selection = Set(GoalDraft.weekdays.map(\.value)) }
+                quickButton("Weekdays") { selection = Set([2, 3, 4, 5, 6]) }
+                quickButton("Weekend") { selection = Set([1, 7]) }
             }
-            .buttonStyle(.bordered)
 
-            Button("Weekdays") {
-                selection = Set([2, 3, 4, 5, 6])
-            }
-            .buttonStyle(.bordered)
-
-            Button("Weekend") {
-                selection = Set([1, 7])
-            }
-            .buttonStyle(.bordered)
-
-            ForEach(GoalDraft.weekdays, id: \.value) { day in
-                Button {
-                    toggle(day.value)
-                } label: {
-                    Text(day.label)
-                        .font(.caption.weight(.semibold))
-                        .frame(width: 34, height: 28)
+            HStack(spacing: 8) {
+                ForEach(GoalDraft.weekdays, id: \.value) { day in
+                    Button {
+                        toggle(day.value)
+                    } label: {
+                        Text(day.label)
+                            .font(.caption.weight(.semibold))
+                            .frame(width: 42, height: 28)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(selection.contains(day.value) ? .green : .secondary)
                 }
-                .buttonStyle(.bordered)
-                .tint(selection.contains(day.value) ? .green : .secondary)
             }
         }
+    }
+
+    private func quickButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
     }
 
     private func toggle(_ weekday: Int) {
@@ -312,8 +346,21 @@ private struct DescriptionTaskList: View {
             }
 
             ForEach(draft.descriptionItems.indices, id: \.self) { index in
-                TextField(inspiration, text: $draft.descriptionItems[index], axis: .vertical)
-                    .lineLimit(1...3)
+                HStack(alignment: .top, spacing: 8) {
+                    TextField("", text: $draft.descriptionItems[index], prompt: Text(inspiration), axis: .vertical)
+                        .lineLimit(1...3)
+                        .textFieldStyle(.roundedBorder)
+
+                    if index > 0 {
+                        Button(role: .destructive) {
+                            draft.descriptionItems.remove(at: index)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Remove task")
+                    }
+                }
             }
         }
     }
@@ -329,17 +376,19 @@ private struct DailyTargetFields: View {
     @Binding var minutes: Int
 
     var body: some View {
-        HStack {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 10, verticalSpacing: 8) {
             Text("Daily target")
-            Spacer()
-            TextField("0", value: hoursBinding, format: .number)
-                .frame(width: 54)
-                .textFieldStyle(.roundedBorder)
-            Text("hours")
-            TextField("60", value: minuteRemainderBinding, format: .number)
-                .frame(width: 54)
-                .textFieldStyle(.roundedBorder)
-            Text("mins")
+                .gridCellColumns(4)
+            GridRow {
+                TextField("", value: hoursBinding, format: .number)
+                    .frame(width: 64)
+                    .textFieldStyle(.roundedBorder)
+                Text("hours")
+                TextField("", value: minuteRemainderBinding, format: .number)
+                    .frame(width: 64)
+                    .textFieldStyle(.roundedBorder)
+                Text("mins")
+            }
         }
     }
 
@@ -363,15 +412,17 @@ private struct TimeRangeFields: View {
     @Binding var endMinute: Int
 
     var body: some View {
-        HStack {
-            Text("Start")
-            TextField("09:00", text: startText)
-                .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
-            Text("End")
-            TextField("17:00", text: endText)
-                .frame(width: 80)
-                .textFieldStyle(.roundedBorder)
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 8) {
+            GridRow {
+                Text("Start")
+                TextField("", text: startText)
+                    .frame(width: 86)
+                    .textFieldStyle(.roundedBorder)
+                Text("End")
+                TextField("", text: endText)
+                    .frame(width: 86)
+                    .textFieldStyle(.roundedBorder)
+            }
         }
     }
 

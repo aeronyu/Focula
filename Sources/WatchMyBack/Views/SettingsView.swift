@@ -230,12 +230,16 @@ struct SettingsView: View {
 
             Section("Privacy") {
                 Toggle(
-                    "Save safe activity summaries",
                     isOn: Binding(
                         get: { model.settings.persistActivitySummaries },
                         set: { model.updatePersistActivitySummaries($0) }
                     )
-                )
+                ) {
+                    SettingLabel(
+                        title: "Save safe activity summaries",
+                        info: "Stores only short redacted activity phrases for the dashboard log. Raw screenshots, OCR, visible text, prompts, and image data are never stored."
+                    )
+                }
 
                 Text("When enabled, Watch My Back stores a short redacted activity summary for the dashboard feed. Raw screenshots, OCR, visible text, prompts, and image data are still not stored.")
                     .font(.caption)
@@ -256,7 +260,6 @@ struct SettingsView: View {
 
             Section("Monitoring Rules") {
                 Toggle(
-                    "Any tracking goal can count as focused",
                     isOn: Binding(
                         get: { model.settings.monitoringRules.anyTrackingGoalCountsAsFocused },
                         set: { enabled in
@@ -265,10 +268,14 @@ struct SettingsView: View {
                             model.updateMonitoringRules(rules)
                         }
                     )
-                )
+                ) {
+                    SettingLabel(
+                        title: "Any tracking goal can count as focused",
+                        info: "When enabled, visible work that clearly matches any saved tracking goal can be counted as focused, even if it is not the currently selected mission."
+                    )
+                }
 
                 Toggle(
-                    "Unmatched visible activity is side tracked",
                     isOn: Binding(
                         get: { model.settings.monitoringRules.unmatchedActivityIsSideTracked },
                         set: { enabled in
@@ -277,7 +284,12 @@ struct SettingsView: View {
                             model.updateMonitoringRules(rules)
                         }
                     )
-                )
+                ) {
+                    SettingLabel(
+                        title: "Unmatched visible activity is side tracked",
+                        info: "When enabled, visible activity that does not match any tracking goal is treated as side tracked when Scout has reasonable confidence."
+                    )
+                }
 
                 Text("The scout reviews the focused screen plus relevant visible context from other displayed screens, then ignores unrelated screen content.")
                     .font(.caption)
@@ -317,7 +329,6 @@ struct SettingsView: View {
 
             Section("Notifications") {
                 Toggle(
-                    "Alert on sustained drift",
                     isOn: Binding(
                         get: { model.settings.notificationPreferences.notifyOnSustainedDrift },
                         set: { enabled in
@@ -326,10 +337,14 @@ struct SettingsView: View {
                             model.updateNotificationPreferences(preferences)
                         }
                     )
-                )
+                ) {
+                    SettingLabel(
+                        title: "Alert on sustained drift",
+                        info: "Sustained drift means recent check-ins show enough repeated off-goal time inside quest hours to pass the drift threshold and notification cooldown."
+                    )
+                }
 
                 Toggle(
-                    "Alert on model or runtime failures",
                     isOn: Binding(
                         get: { model.settings.notificationPreferences.notifyOnRuntimeFailure },
                         set: { enabled in
@@ -338,7 +353,12 @@ struct SettingsView: View {
                             model.updateNotificationPreferences(preferences)
                         }
                     )
-                )
+                ) {
+                    SettingLabel(
+                        title: "Alert on model or runtime failures",
+                        info: "Shows alerts when the local model, provider endpoint, or screen-capture runtime cannot produce a usable classification."
+                    )
+                }
 
                 if let lastError = model.lastError {
                     Label(lastError, systemImage: "exclamationmark.triangle")
@@ -418,6 +438,33 @@ struct SettingsView: View {
         let currentPath = model.settings.builtInModelStatus.storagePath
         if let current = model.builtInModelFolders.first(where: { $0.path == currentPath }) {
             selectedModelFolderPaths = [current.path]
+        }
+    }
+}
+
+private struct SettingLabel: View {
+    let title: String
+    let info: String
+    @State private var showsInfo = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title)
+            Button {
+                showsInfo.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.borderless)
+            .help(info)
+            .popover(isPresented: $showsInfo, arrowEdge: .trailing) {
+                Text(info)
+                    .font(.callout)
+                    .padding(12)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 320, alignment: .leading)
+            }
         }
     }
 }

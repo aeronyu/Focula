@@ -835,7 +835,7 @@ final class AppModel: ObservableObject {
         case "built_in_model_not_ready":
             return "Finish local model setup in Settings before Scout can summarize activity."
         case "built_in_model_runtime_error":
-            return "Local Gemma is installed but did not return a summary. Test or restart the model in Settings."
+            return "Local model needs a test or restart in Settings."
         case "screen_recording_permission_missing":
             return "Grant Screen Recording so Scout can classify activity locally."
         case "cloud_blocked":
