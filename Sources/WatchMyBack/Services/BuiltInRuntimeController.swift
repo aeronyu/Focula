@@ -4,6 +4,13 @@ import WatchMyBackCore
 
 @MainActor
 final class BuiltInRuntimeController {
+    private static let pythonRequirementsVersion = "2026-06-05-gemma4-mlx-vlm-0.4.3"
+    private static let pythonRequirements = [
+        "mlx-vlm==0.4.3",
+        "huggingface_hub",
+        "pillow"
+    ]
+
     private var sidecarProcess: Process?
     private var runningModelID: String?
     private let port: Int
@@ -74,23 +81,7 @@ final class BuiltInRuntimeController {
 
         try FileManager.default.createDirectory(at: runtimeRoot, withIntermediateDirectories: true)
 
-        if !FileManager.default.fileExists(atPath: python.path) {
-            try await runProcess(
-                executable: URL(fileURLWithPath: "/usr/bin/python3"),
-                arguments: ["-m", "venv", pythonRoot.path],
-                environment: [:]
-            )
-            try await runProcess(
-                executable: python,
-                arguments: ["-m", "pip", "install", "--upgrade", "pip"],
-                environment: [:]
-            )
-            try await runProcess(
-                executable: python,
-                arguments: ["-m", "pip", "install", "mlx-vlm", "huggingface_hub", "pillow"],
-                environment: [:]
-            )
-        }
+        try await ensurePythonEnvironment(pythonRoot: pythonRoot)
 
         try FileManager.default.createDirectory(at: modelRoot, withIntermediateDirectories: true)
         try await runProcess(
@@ -182,6 +173,7 @@ final class BuiltInRuntimeController {
 
         let pythonRoot = try ModelSupportPaths.pythonEnvironmentRoot()
         let python = pythonRoot.appendingPathComponent("bin/python")
+        try await ensurePythonEnvironment(pythonRoot: pythonRoot)
         let modelRoot = try ModelSupportPaths.builtInModelRoot(for: descriptor)
         guard let script = Bundle.module.url(
             forResource: "builtin_gemma_sidecar",
@@ -218,6 +210,126 @@ final class BuiltInRuntimeController {
         throw BuiltInRuntimeError.processFailed("sidecar did not answer /health")
     }
 
+    private func ensurePythonEnvironment(pythonRoot: URL) async throws {
+        let python = pythonRoot.appendingPathComponent("bin/python")
+        if FileManager.default.fileExists(atPath: python.path),
+           try await !pythonMeetsMinimumVersion(python) {
+            try FileManager.default.removeItem(at: pythonRoot)
+        }
+
+        if !FileManager.default.fileExists(atPath: python.path) {
+            try await createPythonEnvironment(at: pythonRoot)
+        }
+
+        let marker = pythonRoot.appendingPathComponent(".watch-my-back-requirements-\(Self.pythonRequirementsVersion)")
+        if FileManager.default.fileExists(atPath: marker.path) {
+            return
+        }
+
+        try await installPythonRequirements(python: python)
+        try Self.pythonRequirementsVersion.write(to: marker, atomically: true, encoding: .utf8)
+    }
+
+    private func createPythonEnvironment(at pythonRoot: URL) async throws {
+        if let uv = Self.firstExecutable(named: "uv") {
+            try await runProcess(
+                executable: uv,
+                arguments: ["venv", "--python", "3.11", pythonRoot.path],
+                environment: [:]
+            )
+            return
+        }
+
+        guard let python = try await Self.firstPythonExecutableAtLeast310() else {
+            throw BuiltInRuntimeError.missingPython310
+        }
+        try await runProcess(
+            executable: python,
+            arguments: ["-m", "venv", pythonRoot.path],
+            environment: [:]
+        )
+    }
+
+    private func installPythonRequirements(python: URL) async throws {
+        if let uv = Self.firstExecutable(named: "uv") {
+            try await runProcess(
+                executable: uv,
+                arguments: ["pip", "install", "--python", python.path] + Self.pythonRequirements,
+                environment: [:]
+            )
+            return
+        }
+
+        try await runProcess(
+            executable: python,
+            arguments: ["-m", "pip", "install", "--upgrade", "pip"],
+            environment: [:]
+        )
+        try await runProcess(
+            executable: python,
+            arguments: ["-m", "pip", "install", "--upgrade"] + Self.pythonRequirements,
+            environment: [:]
+        )
+    }
+
+    private func pythonMeetsMinimumVersion(_ python: URL) async throws -> Bool {
+        let output = try await Self.runProcessCapturingOutput(
+            executable: python,
+            arguments: [
+                "-c",
+                "import sys; print('1' if sys.version_info >= (3, 10) else '0')"
+            ],
+            environment: [:]
+        )
+        return output.trimmingCharacters(in: .whitespacesAndNewlines) == "1"
+    }
+
+    private static func firstPythonExecutableAtLeast310() async throws -> URL? {
+        for candidate in pythonCandidates() where FileManager.default.isExecutableFile(atPath: candidate.path) {
+            let output = try await runProcessCapturingOutput(
+                executable: candidate,
+                arguments: [
+                    "-c",
+                    "import sys; print('1' if sys.version_info >= (3, 10) else '0')"
+                ],
+                environment: [:]
+            )
+            if output.trimmingCharacters(in: .whitespacesAndNewlines) == "1" {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    private static func firstExecutable(named name: String) -> URL? {
+        executableCandidates(named: name).first {
+            FileManager.default.isExecutableFile(atPath: $0.path)
+        }
+    }
+
+    private static func executableCandidates(named name: String) -> [URL] {
+        let pathCandidates = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+            .split(separator: ":")
+            .map { URL(fileURLWithPath: String($0)).appendingPathComponent(name) }
+        return pathCandidates + [
+            URL(fileURLWithPath: "/opt/homebrew/bin").appendingPathComponent(name),
+            URL(fileURLWithPath: "/usr/local/bin").appendingPathComponent(name),
+            FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".local/bin")
+                .appendingPathComponent(name)
+        ]
+    }
+
+    private static func pythonCandidates() -> [URL] {
+        [
+            "python3.13",
+            "python3.12",
+            "python3.11",
+            "python3.10",
+            "python3"
+        ].flatMap(executableCandidates(named:))
+    }
+
     func stop() {
         if sidecarProcess?.isRunning == true {
             sidecarProcess?.terminate()
@@ -231,6 +343,18 @@ final class BuiltInRuntimeController {
         arguments: [String],
         environment: [String: String]
     ) async throws {
+        _ = try await Self.runProcessCapturingOutput(
+            executable: executable,
+            arguments: arguments,
+            environment: environment
+        )
+    }
+
+    private static func runProcessCapturingOutput(
+        executable: URL,
+        arguments: [String],
+        environment: [String: String]
+    ) async throws -> String {
         try await Task.detached {
             let process = Process()
             process.executableURL = executable
@@ -244,11 +368,13 @@ final class BuiltInRuntimeController {
             try process.run()
             process.waitUntilExit()
 
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let output = String(data: data, encoding: .utf8) ?? ""
+
             guard process.terminationStatus == 0 else {
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? "no process output"
-                throw BuiltInRuntimeError.processFailed(output)
+                throw BuiltInRuntimeError.processFailed(output.isEmpty ? "no process output" : output)
             }
+            return output
         }.value
     }
 
@@ -268,6 +394,7 @@ final class BuiltInRuntimeController {
 
 enum BuiltInRuntimeError: LocalizedError {
     case notInstalled
+    case missingPython310
     case missingSidecarScript
     case processFailed(String)
     case unsafeModelDeletePath(String)
@@ -276,6 +403,8 @@ enum BuiltInRuntimeError: LocalizedError {
         switch self {
         case .notInstalled:
             "Built-in Gemma is not installed."
+        case .missingPython310:
+            "Built-in Gemma requires Python 3.10 or newer to install mlx-vlm 0.4.3."
         case .missingSidecarScript:
             "Built-in sidecar script is missing from the app bundle."
         case .processFailed(let output):

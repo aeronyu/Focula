@@ -80,7 +80,8 @@ def classify(payload):
         images.append(Image.open(io.BytesIO(image_bytes)).convert("RGB"))
         config = load_config(MODEL_PATH)
         prompt = apply_chat_template(processor, config, strict_prompt(payload), num_images=len(images))
-        text = generate(model, processor, prompt, images, max_tokens=160, temperature=0.0)
+        generated = generate(model, processor, prompt, images, max_tokens=160, temperature=0.0)
+        text = getattr(generated, "text", generated)
         start = text.find("{")
         end = text.rfind("}")
         if start < 0 or end < start:
