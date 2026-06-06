@@ -139,3 +139,32 @@ public final class FrameDeduplicator {
         return hash
     }
 }
+
+public enum SamplingPolicy {
+    public static func nextInterval(
+        configuredInterval: TimeInterval,
+        idleSeconds: TimeInterval
+    ) -> TimeInterval {
+        let configuredInterval = max(15, configuredInterval)
+        let idleBackoff: TimeInterval
+        if idleSeconds < 60 {
+            idleBackoff = configuredInterval
+        } else if idleSeconds < 300 {
+            idleBackoff = max(configuredInterval, 120)
+        } else {
+            idleBackoff = max(configuredInterval, 300)
+        }
+        return min(idleBackoff, 300)
+    }
+
+    public static func sampleDuration(
+        lastSampleAt: Date?,
+        now: Date,
+        fallbackInterval: TimeInterval
+    ) -> TimeInterval {
+        guard let lastSampleAt else {
+            return min(max(fallbackInterval, 1), 300)
+        }
+        return min(max(now.timeIntervalSince(lastSampleAt), 1), 300)
+    }
+}

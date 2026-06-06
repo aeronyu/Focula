@@ -263,10 +263,6 @@ final class AppModel: ObservableObject {
         refreshBuiltInModelFolders()
     }
 
-    func deleteBuiltInModel() {
-        deleteBuiltInModelFolders(paths: Set(settings.builtInModelStatus.storagePath.map { [$0] } ?? []))
-    }
-
     func deleteBuiltInModelFolders(paths: Set<String>) {
         do {
             let deletedCount = paths.count
@@ -319,7 +315,7 @@ final class AppModel: ObservableObject {
     }
 
     func updateSampleInterval(_ value: TimeInterval) {
-        settings.sampleIntervalSeconds = max(15, value)
+        settings.sampleIntervalSeconds = min(max(15, value), 300)
         saveSettings()
         if !settings.paused {
             stopTimer()
@@ -689,15 +685,10 @@ final class AppModel: ObservableObject {
     }
 
     private func nextSampleInterval() -> TimeInterval {
-        let idleSeconds = recentInputIdleSeconds()
-
-        if idleSeconds < 60 {
-            return 30
-        }
-        if idleSeconds < 300 {
-            return 120
-        }
-        return 300
+        SamplingPolicy.nextInterval(
+            configuredInterval: settings.sampleIntervalSeconds,
+            idleSeconds: recentInputIdleSeconds()
+        )
     }
 
     private func recentInputIdleSeconds() -> TimeInterval {
@@ -718,10 +709,11 @@ final class AppModel: ObservableObject {
     }
 
     private func sampleDuration(at now: Date) -> TimeInterval {
-        guard let lastSampleAt else {
-            return nextSampleInterval()
-        }
-        return min(max(now.timeIntervalSince(lastSampleAt), 1), 300)
+        SamplingPolicy.sampleDuration(
+            lastSampleAt: lastSampleAt,
+            now: now,
+            fallbackInterval: settings.sampleIntervalSeconds
+        )
     }
 
     private func rememberContextFrame(_ imageData: Data, app: FrontmostAppSnapshot) {

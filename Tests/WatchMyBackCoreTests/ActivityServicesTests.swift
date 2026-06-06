@@ -40,6 +40,41 @@ final class ActivityServicesTests: XCTestCase {
             delay: 1.5
         ))
     }
+
+    func testSamplingPolicyUsesConfiguredIntervalWhileActive() {
+        XCTAssertEqual(
+            SamplingPolicy.nextInterval(configuredInterval: 90, idleSeconds: 10),
+            90
+        )
+    }
+
+    func testSamplingPolicyBacksOffWhenIdle() {
+        XCTAssertEqual(
+            SamplingPolicy.nextInterval(configuredInterval: 30, idleSeconds: 90),
+            120
+        )
+        XCTAssertEqual(
+            SamplingPolicy.nextInterval(configuredInterval: 180, idleSeconds: 600),
+            300
+        )
+    }
+
+    func testSampleDurationUsesConfiguredFallbackForFirstSample() {
+        let now = Date(timeIntervalSince1970: 1_000)
+
+        XCTAssertEqual(
+            SamplingPolicy.sampleDuration(lastSampleAt: nil, now: now, fallbackInterval: 75),
+            75
+        )
+        XCTAssertEqual(
+            SamplingPolicy.sampleDuration(
+                lastSampleAt: Date(timeIntervalSince1970: 950),
+                now: now,
+                fallbackInterval: 75
+            ),
+            50
+        )
+    }
 }
 
 private struct StaticScreenCapturePermissionChecker: ScreenCapturePermissionChecking {
