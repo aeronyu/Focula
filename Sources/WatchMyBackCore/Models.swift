@@ -77,7 +77,7 @@ public struct Goal: Identifiable, Codable, Equatable, Sendable {
     }
 
     public static let starter = Goal(
-        title: "Ship Watch My Back",
+        title: "Ship Focula",
         description: "Build, test, and polish the local-first macOS focus assistant.",
         schedule: .weekdaysNineToFive,
         allowedApps: ["Xcode", "Terminal", "Codex", "Safari", "Notes"],
@@ -311,7 +311,7 @@ public enum BuiltInModelCatalog {
         precision: "QAT mobile Transformers",
         estimatedDownloadSize: "about 1 GB memory footprint",
         expectedMemory: "Not supported by the built-in MLX runtime yet",
-        localOnlyNotice: "Google's smaller QAT mobile checkpoint is tracked here, but Watch My Back cannot run it until the sidecar supports LiteRT or Transformers mobile tensors.",
+        localOnlyNotice: "Google's smaller QAT mobile checkpoint is tracked here, but Focula cannot run it until the sidecar supports LiteRT or Transformers mobile tensors.",
         isInstallable: false
     )
 

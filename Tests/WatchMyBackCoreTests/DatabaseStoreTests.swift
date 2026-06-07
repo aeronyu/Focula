@@ -9,7 +9,7 @@ final class DatabaseStoreTests: XCTestCase {
             .path
         let store = try DatabaseStore(path: path)
         let goal = Goal(
-            title: "Ship Watch My Back",
+            title: "Ship Focula",
             description: "Build native macOS focus app",
             schedule: FocusSchedule.weekdaysNineToFive,
             allowedApps: ["Xcode", "Terminal"],
@@ -35,7 +35,7 @@ final class DatabaseStoreTests: XCTestCase {
         )
         try store.saveActivitySample(sample)
 
-        XCTAssertEqual(try store.fetchGoals().map(\.title), ["Ship Watch My Back"])
+        XCTAssertEqual(try store.fetchGoals().map(\.title), ["Ship Focula"])
         XCTAssertEqual(try store.fetchRecentSamples(limit: 1).first?.activitySummary, "Working in Xcode")
         let stats = try store.dailyStats(
             for: Date(timeIntervalSince1970: 1_800),

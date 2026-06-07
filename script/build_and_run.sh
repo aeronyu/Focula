@@ -3,15 +3,16 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="WatchMyBack"
-BUNDLE_ID="dev.aeronyu.WatchMyBack"
+APP_DISPLAY_NAME="Focula"
+BUNDLE_ID="dev.aeronyu.Focula"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
-APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+APP_BUNDLE="$DIST_DIR/$APP_DISPLAY_NAME.app"
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/watch-my-back.XXXXXX")"
 trap 'rm -rf "$STAGING_DIR"' EXIT
-STAGED_APP_BUNDLE="$STAGING_DIR/$APP_NAME.app"
+STAGED_APP_BUNDLE="$STAGING_DIR/$APP_DISPLAY_NAME.app"
 APP_CONTENTS="$STAGED_APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
@@ -49,9 +50,9 @@ cat >"$INFO_PLIST" <<PLIST
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
-  <string>Watch My Back</string>
+  <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleDisplayName</key>
-  <string>Watch My Back</string>
+  <string>$APP_DISPLAY_NAME</string>
   <key>CFBundleIconFile</key>
   <string>$APP_ICON_NAME</string>
   <key>CFBundlePackageType</key>
@@ -65,7 +66,7 @@ cat >"$INFO_PLIST" <<PLIST
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Watch My Back classifies ephemeral screenshots locally to determine whether current activity matches your goals.</string>
+  <string>Focula classifies ephemeral screenshots locally to determine whether current activity matches your goals.</string>
 </dict>
 </plist>
 PLIST

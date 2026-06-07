@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="crispEdges" role="img" aria-labelledby="title desc">
-  <title id="title">Watch My Back app icon</title>
-  <desc id="desc">Pixel-art guardian eyes with glass highlights for the Watch My Back macOS app.</desc>
+  <title id="title">Focula app icon</title>
+  <desc id="desc">Pixel-art guardian eyes with glass highlights for the Focula macOS app.</desc>
   <defs>
     <clipPath id="iconMask">
       <path d="M128 128h768v64h64v640h-64v64H128v-64H64V192h64z"/>

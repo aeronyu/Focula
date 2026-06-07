@@ -7,7 +7,7 @@ struct WatchMyBackApp: App {
     @StateObject private var model = AppModel()
 
     var body: some Scene {
-        WindowGroup("Watch My Back", id: "dashboard") {
+        WindowGroup("Focula", id: "dashboard") {
             ContentView()
                 .environmentObject(model)
                 .frame(minWidth: 980, minHeight: 680)
@@ -68,7 +68,7 @@ struct WatchMyBackApp: App {
             MenuBarContentView()
                 .environmentObject(model)
         } label: {
-            Label("Watch My Back", systemImage: model.menuBarSystemImage)
+            Label("Focula", systemImage: model.menuBarSystemImage)
         }
         .menuBarExtraStyle(.window)
 

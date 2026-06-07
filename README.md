@@ -1,6 +1,6 @@
-# Watch My Back
+# Focula
 
-Watch My Back is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a built-in local Gemma vision model, and nudges you when your work drifts off mission.
+Focula is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a built-in local Gemma vision model, and nudges you when your work drifts off mission.
 
 ## Screenshots
 
@@ -31,8 +31,9 @@ Built-in choices:
 
 Storage:
 
-- Runtime path: `~/Library/Application Support/Watch My Back/BuiltInRuntime`
-- Model path: `~/Library/Application Support/Watch My Back/BuiltInRuntime/Models`
+- Runtime path: `~/Library/Application Support/Focula/BuiltInRuntime`
+- Model path: `~/Library/Application Support/Focula/BuiltInRuntime/Models`
+- Existing development installs may still have older data under `~/Library/Application Support/Watch My Back`.
 - Sidecar: app-owned loopback service at `127.0.0.1:8765` while the app is running
 
 Older settings that pointed at `google/gemma-4-E2B-it` are migrated to the recommended MLX 4-bit built-in model. Settings lists installed model folders, including legacy folders such as `google__gemma-4-E2B-it`, and Delete removes only the folders the user selects.
@@ -57,13 +58,13 @@ Ollama is intentionally out of scope.
 ./script/build_and_run.sh --verify
 ```
 
-The run script stages a normal app bundle at `dist/WatchMyBack.app`, copies SwiftPM resources, and signs the bundle. It uses the first available Apple Development identity by default; override with:
+The run script stages a normal app bundle at `dist/Focula.app`, copies SwiftPM resources, and signs the bundle. It uses the first available Apple Development identity by default; override with:
 
 ```bash
 WMB_CODESIGN_IDENTITY="Apple Development: Name (TEAMID)" ./script/build_and_run.sh
 ```
 
-If Screen Recording was granted to an older unsigned build, remove the old Watch My Back row in System Settings, rebuild through the script, then use the in-app permission guide to grant the newly signed app.
+If Screen Recording was granted to an older unsigned build, remove the old Focula row in System Settings, rebuild through the script, then use the in-app permission guide to grant the newly signed app.
 
 Run tests:
 

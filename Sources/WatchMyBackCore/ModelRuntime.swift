@@ -108,7 +108,8 @@ public struct BuiltInModelFolder: Identifiable, Equatable, Sendable {
 }
 
 public enum ModelSupportPaths {
-    public static let appSupportFolderName = "Watch My Back"
+    public static let appSupportFolderName = "Focula"
+    public static let legacyAppSupportFolderName = "Watch My Back"
 
     public static func applicationSupportRoot(fileManager: FileManager = .default) throws -> URL {
         let base = try fileManager.url(
@@ -117,7 +118,16 @@ public enum ModelSupportPaths {
             appropriateFor: nil,
             create: true
         )
+        return try applicationSupportRoot(base: base, fileManager: fileManager)
+    }
+
+    public static func applicationSupportRoot(base: URL, fileManager: FileManager = .default) throws -> URL {
         let folder = base.appendingPathComponent(appSupportFolderName, isDirectory: true)
+        let legacyFolder = base.appendingPathComponent(legacyAppSupportFolderName, isDirectory: true)
+        if !fileManager.fileExists(atPath: folder.path),
+           fileManager.fileExists(atPath: legacyFolder.path) {
+            try fileManager.moveItem(at: legacyFolder, to: folder)
+        }
         try fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
         return folder
     }

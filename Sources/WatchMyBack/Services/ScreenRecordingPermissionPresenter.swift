@@ -140,7 +140,7 @@ private final class ScreenRecordingPermissionContentController: NSViewController
         title.font = NSFont.systemFont(ofSize: 30, weight: .bold)
         title.textColor = .labelColor
 
-        let subtitle = NSTextField(wrappingLabelWithString: "Watch My Back classifies temporary screenshots locally during focus hours. Drag the app tile into System Settings if macOS does not already list it.")
+        let subtitle = NSTextField(wrappingLabelWithString: "Focula classifies temporary screenshots locally during focus hours. Drag the app tile into System Settings if macOS does not already list it.")
         subtitle.font = NSFont.systemFont(ofSize: 14)
         subtitle.textColor = .secondaryLabelColor
         subtitle.alignment = .center
@@ -309,12 +309,12 @@ private final class ScreenRecordingPermissionCard: NSView {
 
     private var subtitleText: String {
         if isGranted {
-            return "Watch My Back can classify screenshots locally."
+            return "Focula can classify screenshots locally."
         }
         if restartRequired {
             return "Restart the app if macOS has not refreshed the new permission."
         }
-        return "Open System Settings, then enable or drag Watch My Back into the permission list."
+        return "Open System Settings, then enable or drag Focula into the permission list."
     }
 
     @objc
@@ -469,7 +469,7 @@ private final class ScreenRecordingPermissionHelperView: NSView {
         arrow.translatesAutoresizingMaskIntoConstraints = false
         material.addSubview(arrow)
 
-        let label = NSTextField(labelWithString: "Drag Watch My Back above to allow Screen Recording")
+        let label = NSTextField(labelWithString: "Drag Focula above to allow Screen Recording")
         label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         label.textColor = .secondaryLabelColor
         label.lineBreakMode = .byTruncatingTail
@@ -666,7 +666,7 @@ private enum ScreenRecordingPermissionSupport {
         let bundle = Bundle.main
         return (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
             ?? (bundle.object(forInfoDictionaryKey: kCFBundleNameKey as String) as? String)
-            ?? "Watch My Back"
+            ?? "Focula"
     }
 
     @MainActor
@@ -699,7 +699,7 @@ private enum ScreenRecordingPermissionSupport {
         while directory.path != "/" {
             let candidate = directory
                 .appendingPathComponent("dist", isDirectory: true)
-                .appendingPathComponent("WatchMyBack.app", isDirectory: true)
+                .appendingPathComponent("Focula.app", isDirectory: true)
             if FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Contents/Info.plist").path) {
                 return candidate
             }

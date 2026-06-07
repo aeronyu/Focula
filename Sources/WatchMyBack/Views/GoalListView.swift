@@ -6,14 +6,15 @@ import WatchMyBackCore
 struct GoalListView: View {
     @EnvironmentObject private var model: AppModel
     @State private var editingDraft: GoalDraft?
-    @State private var missionPendingDelete: Goal?
+    @State private var missionsPendingDelete: [Goal] = []
+    @State private var selectedMissionIDs: Set<UUID> = []
 
     var body: some View {
-        List(selection: $model.selectedGoalID) {
+        List(selection: $selectedMissionIDs) {
             Section {
                 ForEach(primaryGoals) { goal in
                     GoalRow(goal: goal)
-                        .tag(goal.id as UUID?)
+                        .tag(goal.id)
                         .contextMenu { missionContextMenu(for: goal) }
                 }
             } header: {
@@ -27,7 +28,7 @@ struct GoalListView: View {
                 Section("Not Tracking Today") {
                     ForEach(notTrackingTodayGoals) { goal in
                         GoalRow(goal: goal)
-                            .tag(goal.id as UUID?)
+                            .tag(goal.id)
                             .contextMenu { missionContextMenu(for: goal) }
                     }
                 }
@@ -41,16 +42,15 @@ struct GoalListView: View {
                 } label: {
                     Label("New Mission", systemImage: "plus")
                 }
-
-                Button(role: .destructive) {
-                    if let goal = model.selectedGoal {
-                        missionPendingDelete = goal
-                    }
-                } label: {
-                    Label("Remove Mission", systemImage: "trash")
-                }
-                .disabled(model.selectedGoal == nil)
             }
+        }
+        .onAppear {
+            if let selectedGoalID = model.selectedGoalID {
+                selectedMissionIDs = [selectedGoalID]
+            }
+        }
+        .onChange(of: selectedMissionIDs) { _, ids in
+            model.selectedGoalID = ids.first ?? model.selectedGoalID
         }
         .sheet(item: $editingDraft) { draft in
             GoalEditorSheet(
@@ -64,13 +64,16 @@ struct GoalListView: View {
         }
         .alert("Remove mission?", isPresented: deleteAlertBinding) {
             Button("Cancel", role: .cancel) {
-                missionPendingDelete = nil
+                missionsPendingDelete = []
             }
             Button("Remove", role: .destructive) {
-                if let missionPendingDelete {
-                    model.deleteMission(missionPendingDelete)
+                if missionsPendingDelete.count == 1, let mission = missionsPendingDelete.first {
+                    model.deleteMission(mission)
+                } else {
+                    model.deleteMissions(ids: Set(missionsPendingDelete.map(\.id)))
                 }
-                missionPendingDelete = nil
+                selectedMissionIDs.subtract(missionsPendingDelete.map(\.id))
+                missionsPendingDelete = []
             }
         } message: {
             Text(deleteMessage)
@@ -79,20 +82,20 @@ struct GoalListView: View {
 
     private var deleteAlertBinding: Binding<Bool> {
         Binding(
-            get: { missionPendingDelete != nil },
+            get: { !missionsPendingDelete.isEmpty },
             set: { isPresented in
                 if !isPresented {
-                    missionPendingDelete = nil
+                    missionsPendingDelete = []
                 }
             }
         )
     }
 
     private var deleteMessage: String {
-        guard let missionPendingDelete else {
-            return ""
+        if missionsPendingDelete.count == 1, let mission = missionsPendingDelete.first {
+            return "This removes \"\(mission.title)\" from your mission list. Past activity samples remain as history."
         }
-        return "This removes \"\(missionPendingDelete.title)\" from your mission list. Past activity samples remain as history."
+        return "This removes \(missionsPendingDelete.count) missions from your mission list. Past activity samples remain as history."
     }
 
     private var todayWeekday: Int {
@@ -118,30 +121,47 @@ struct GoalListView: View {
 
     @ViewBuilder
     private func missionContextMenu(for goal: Goal) -> some View {
+        let ids = contextIDs(for: goal)
+        let selectedGoals = model.goals.filter { ids.contains($0.id) }
+        let batch = ids.count > 1
+
         Button {
             editingDraft = GoalDraft(goal: goal)
         } label: {
             Label("Edit Mission", systemImage: "pencil")
         }
+        .disabled(batch)
 
         Button {
             model.duplicateMission(goal)
         } label: {
             Label("Duplicate Mission", systemImage: "plus.square.on.square")
         }
+        .disabled(batch)
 
         Button {
-            model.activateMission(goal)
+            model.setMissionsTracking(ids: ids, enabled: true)
         } label: {
-            Label("Make Active", systemImage: "scope")
+            Label(batch ? "Turn On Tracking" : "Track Mission", systemImage: "scope")
         }
-        .disabled(goal.isActive)
+        .disabled(selectedGoals.allSatisfy(\.isActive))
+
+        Button {
+            model.setMissionsTracking(ids: ids, enabled: false)
+        } label: {
+            Label(batch ? "Turn Off Tracking" : "Stop Tracking", systemImage: "pause.circle")
+        }
+        .disabled(selectedGoals.allSatisfy { !$0.isActive })
 
         Button(role: .destructive) {
-            missionPendingDelete = goal
+            missionsPendingDelete = selectedGoals
         } label: {
-            Label("Remove Mission", systemImage: "trash")
+            Label(batch ? "Remove Missions" : "Remove Mission", systemImage: "trash")
         }
+    }
+
+    private func contextIDs(for goal: Goal) -> Set<UUID> {
+        selectedMissionIDs.contains(goal.id) ? selectedMissionIDs : [goal.id]
     }
 }
 
@@ -243,10 +263,7 @@ private struct GoalEditorSheet: View {
         VStack(spacing: 0) {
             Form {
                 Section("Mission") {
-                    TextField("Goal", text: $draft.title)
-                    DescriptionTaskList(draft: $draft)
-                    Toggle("Active mission", isOn: $draft.isActive)
-                    DailyTargetFields(minutes: $draft.dailyTargetMinutes)
+                    GoalEditorMissionFields(draft: $draft)
                 }
 
                 Section("Quest Hours") {
@@ -359,25 +376,58 @@ private struct DescriptionTaskList: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 6, height: 6)
                     LeftAlignedPlainField(text: $draft.descriptionItems[index], placeholder: inspiration)
-
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contextMenu {
                     if index > 0 {
                         Button(role: .destructive) {
                             draft.descriptionItems.remove(at: index)
                         } label: {
-                            Image(systemName: "trash")
+                            Label("Delete Task", systemImage: "trash")
                         }
-                        .buttonStyle(.borderless)
-                        .help("Remove task")
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inspiration: String {
         let goal = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !goal.isEmpty else { return "Describe one focused task" }
         return "Work on \(goal)"
+    }
+}
+
+private struct GoalEditorMissionFields: View {
+    @Binding var draft: GoalDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Goal")
+                Spacer(minLength: 16)
+                TextField("", text: $draft.title)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 420, alignment: .trailing)
+            }
+
+            Divider()
+
+            DescriptionTaskList(draft: $draft)
+
+            Divider()
+
+            Toggle("Track mission", isOn: $draft.isActive)
+
+            Divider()
+
+            DailyTargetFields(minutes: $draft.dailyTargetMinutes)
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -467,16 +517,18 @@ private struct TimeRangeFields: View {
     }
 
     private var customFields: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: "clock")
                 .foregroundStyle(.secondary)
+                .frame(width: 18)
             TextField("", text: startText)
-                .frame(width: 86)
+                .frame(width: 104)
                 .textFieldStyle(.roundedBorder)
             Text("-")
                 .foregroundStyle(.secondary)
+                .frame(width: 14)
             TextField("", text: endText)
-                .frame(width: 86)
+                .frame(width: 104)
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -647,19 +699,9 @@ private struct LeftAlignedPlainField: View {
     let placeholder: String
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            if text.isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(.tertiary)
-                    .allowsHitTesting(false)
-            }
-
-            TextField("", text: $text, axis: .vertical)
-                .lineLimit(1...3)
-                .multilineTextAlignment(.leading)
-                .textFieldStyle(.plain)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        LeadingPlainTextField(text: $text, placeholder: placeholder)
+            .frame(height: 22)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

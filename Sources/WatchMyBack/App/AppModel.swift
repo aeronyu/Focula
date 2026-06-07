@@ -20,7 +20,7 @@ final class AppModel: ObservableObject {
     )
     @Published var settings = AppSettings()
     @Published private(set) var lastFocusState: WatchMyBackCore.FocusState = .unknown
-    @Published private(set) var statusMessage = "Paused. Resume when you want Watch My Back to observe focus hours."
+    @Published private(set) var statusMessage = "Paused. Resume when you want Focula to observe focus hours."
     @Published private(set) var lastError: String?
     @Published private(set) var isSampling = false
     @Published private(set) var runtimeStatuses: [ModelRuntimeStatus] = []
@@ -81,7 +81,11 @@ final class AppModel: ObservableObject {
     }
 
     var activeGoal: Goal? {
-        goals.first(where: { $0.isActive }) ?? goals.first
+        activeGoals.first ?? goals.first
+    }
+
+    var activeGoals: [Goal] {
+        goals.filter(\.isActive)
     }
 
     var selectedGoal: Goal? {
@@ -365,23 +369,13 @@ final class AppModel: ObservableObject {
             return
         }
 
-        if goals.isEmpty || mission.isActive {
+        if goals.isEmpty {
             mission.isActive = true
         } else if goals.filter({ $0.id != mission.id }).allSatisfy({ !$0.isActive }) {
             mission.isActive = true
         }
 
         if store == nil {
-            if mission.isActive {
-                goals = goals.map { goal in
-                    var goal = goal
-                    if goal.id != mission.id {
-                        goal.isActive = false
-                    }
-                    return goal
-                }
-            }
-
             if let index = goals.firstIndex(where: { $0.id == mission.id }) {
                 goals[index] = mission
             } else {
@@ -399,13 +393,6 @@ final class AppModel: ObservableObject {
         }
 
         do {
-            if mission.isActive {
-                for var goal in goals where goal.id != mission.id && goal.isActive {
-                    goal.isActive = false
-                    try store?.saveGoal(goal)
-                }
-            }
-
             try store?.saveGoal(mission)
             selectedGoalID = mission.id
             statusMessage = "\(mission.title) mission saved."
@@ -416,9 +403,31 @@ final class AppModel: ObservableObject {
     }
 
     func activateMission(_ mission: Goal) {
+        setMissionTracking(mission, enabled: true)
+    }
+
+    func setMissionTracking(_ mission: Goal, enabled: Bool) {
         var mission = mission
-        mission.isActive = true
+        mission.isActive = enabled
         saveMission(mission)
+    }
+
+    func setMissionsTracking(ids: Set<UUID>, enabled: Bool) {
+        let selected = goals.filter { ids.contains($0.id) }
+        guard !selected.isEmpty else { return }
+
+        for var mission in selected {
+            mission.isActive = enabled
+            saveMission(mission)
+        }
+        statusMessage = "\(selected.count) mission\(selected.count == 1 ? "" : "s") \(enabled ? "tracking" : "paused")."
+    }
+
+    func deleteMissions(ids: Set<UUID>) {
+        let selected = goals.filter { ids.contains($0.id) }
+        guard !selected.isEmpty else { return }
+        selected.forEach(deleteMission)
+        statusMessage = "\(selected.count) mission\(selected.count == 1 ? "" : "s") removed."
     }
 
     func duplicateMission(_ mission: Goal) {
@@ -478,28 +487,33 @@ final class AppModel: ObservableObject {
             statusMessage = "Quiet: Mac is sleeping. Tracking resumes after wake."
             return
         }
-        guard let goal = activeGoal else {
-            statusMessage = "No active goal. Add a goal before tracking."
+        let trackingGoals = activeGoals
+        guard !trackingGoals.isEmpty else {
+            statusMessage = "No tracking missions. Turn on tracking for at least one mission."
             return
         }
 
         let now = Date()
-        if !manual, !goal.schedule.contains(now) {
-            statusMessage = "Quiet: outside focus hours for \(goal.title)."
+        let scheduledGoals = trackingGoals.filter { $0.schedule.contains(now) }
+        if !manual, scheduledGoals.isEmpty {
+            statusMessage = "Quiet: outside quest hours for tracking missions."
             return
         }
+        let eligibleGoals = manual ? trackingGoals : scheduledGoals
+        let attributionGoal = attributionGoal(from: eligibleGoals)
+        let classifierGoal = classifierGoalContext(for: attributionGoal, activeGoals: eligibleGoals)
 
         isSampling = true
         defer { isSampling = false }
 
         let app = appProvider.currentApp()
-        let result = await classifyCurrentScreen(goal: goal, app: app)
+        let result = await classifyCurrentScreen(goal: classifierGoal, app: app)
 
         var sample = ActivitySample(
             timestamp: now,
             appName: app.appName,
             bundleIdentifier: app.bundleIdentifier,
-            goalID: goal.id,
+            goalID: attributionGoal.id,
             focusState: result.focusState,
             activityCategory: result.activityCategory,
             activitySummary: settings.persistActivitySummaries
@@ -513,14 +527,14 @@ final class AppModel: ObservableObject {
         let windowSummary = activityWindowAnalyzer.summarize(samples: recentSamples, including: sample, now: now)
         let shouldNudge = windowSummary.isSustainedDrift && nudgeCoordinator.shouldNudge(
             focusState: .offGoal,
-            schedule: goal.schedule,
+            schedule: attributionGoal.schedule,
             paused: settings.paused,
             now: now
         )
         sample.nudgeShown = shouldNudge
 
         if shouldNudge, settings.notificationPreferences.notifyOnSustainedDrift {
-            NotificationNudgePresenter.shared.show(goal: goal, appName: app.appName)
+            NotificationNudgePresenter.shared.show(goal: attributionGoal, appName: app.appName)
             nudgeCoordinator.recordNudge(at: now)
         }
 
@@ -529,7 +543,7 @@ final class AppModel: ObservableObject {
             lastSampleAt = now
             activityWindowSummary = windowSummary
             lastFocusState = result.focusState
-            statusMessage = statusText(for: sample, goal: goal, windowSummary: windowSummary)
+            statusMessage = statusText(for: sample, goal: attributionGoal, windowSummary: windowSummary)
             reloadFromStore()
         } catch {
             lastError = "Could not save sample: \(error.localizedDescription)"
@@ -572,14 +586,14 @@ final class AppModel: ObservableObject {
             return await client.classify(
                 imageData: imageData,
                 contextImageData: capture.contextImageData + contextImageDataForCurrentFrame(),
-                goal: classifierGoalContext(for: goal),
+                goal: goal,
                 appName: app.appName,
                 bundleIdentifier: app.bundleIdentifier
             )
         } catch ScreenSnapshotError.permissionDenied {
             refreshScreenRecordingPermission()
             ScreenRecordingPermissionPresenter.shared.present()
-            lastError = "Screen Recording permission is required before Watch My Back can classify activity."
+            lastError = "Screen Recording permission is required before Focula can classify activity."
             return VisionClassifierResult(
                 focusState: .unknown,
                 activityCategory: "screen_recording_permission_missing",
@@ -593,18 +607,24 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func classifierGoalContext(for goal: Goal) -> Goal {
-        guard settings.monitoringRules.anyTrackingGoalCountsAsFocused || settings.monitoringRules.unmatchedActivityIsSideTracked else {
-            return goal
+    private func attributionGoal(from goals: [Goal]) -> Goal {
+        if let selectedGoalID,
+           let selected = goals.first(where: { $0.id == selectedGoalID }) {
+            return selected
         }
+        return goals[0]
+    }
+
+    private func classifierGoalContext(for goal: Goal, activeGoals: [Goal]) -> Goal {
         var contextualGoal = goal
-        let relatedGoals = goals.filter { $0.id != goal.id }
+        let relatedGoals = activeGoals.filter { $0.id != goal.id }
         let relatedGoalText = relatedGoals
             .map { "- \($0.title): \($0.description)" }
             .joined(separator: "\n")
-        var descriptionParts = [goal.description]
-        if settings.monitoringRules.anyTrackingGoalCountsAsFocused, !relatedGoalText.isEmpty {
-            descriptionParts.append("Also count activity as focused when it clearly supports one of these tracking goals:")
+        var descriptionParts = ["Classify against all tracking missions that are inside quest hours."]
+        descriptionParts.append("Primary mission: \(goal.title)\n\(goal.description)")
+        if !relatedGoalText.isEmpty {
+            descriptionParts.append("Other active tracking missions:")
             descriptionParts.append(relatedGoalText)
         }
         if settings.monitoringRules.unmatchedActivityIsSideTracked {
@@ -683,10 +703,12 @@ final class AppModel: ObservableObject {
             statusMessage = "Quiet: Mac is sleeping. Tracking resumes after wake."
         } else if settings.paused {
             statusMessage = "Paused. No screenshots or activity samples are being captured."
-        } else if let activeGoal {
-            statusMessage = "Tracking focus hours for \(activeGoal.title). Screenshots are classified locally and discarded."
+        } else if activeGoals.isEmpty {
+            statusMessage = "No tracking missions. Turn on tracking for at least one mission."
+        } else if activeGoals.count == 1, let activeGoal {
+            statusMessage = "Tracking quest hours for \(activeGoal.title). Screenshots are classified locally and discarded."
         } else {
-            statusMessage = "No active goal. Add a goal before tracking."
+            statusMessage = "Tracking quest hours for \(activeGoals.count) tracking missions. Screenshots are classified locally and discarded."
         }
     }
 
@@ -912,14 +934,14 @@ final class AppModel: ObservableObject {
 
         switch windowSummary.state {
         case .drifting:
-            return "Drift is building. Watch My Back will nudge after cooldown and schedule checks."
+            return "Drift is building. Focula will nudge after cooldown and schedule checks."
         case .onTrack:
             return "On mission for \(goal.title)."
         case .mixed:
             return "Gathering recent activity context for \(goal.title)."
         case .unknown:
             if !screenRecordingPermission.isGranted {
-                return "Screen Recording is required before Watch My Back can classify activity."
+                return "Screen Recording is required before Focula can classify activity."
             }
             if settings.modelSelection.provider == .builtInGemma,
                settings.builtInModelStatus.installState != .ready {

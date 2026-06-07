@@ -10,7 +10,7 @@ struct MenuBarContentView: View {
                 Image(systemName: model.lastFocusState.symbolName)
                     .foregroundStyle(model.lastFocusState.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.selectedGoal?.title ?? "Watch My Back")
+                    Text(model.selectedGoal?.title ?? "Focula")
                         .font(.headline)
                         .lineLimit(1)
                     Text(model.lastFocusState.label)

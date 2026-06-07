@@ -149,7 +149,7 @@ struct SettingsView: View {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }
                 }
-                Text("The guide opens System Settings and shows a draggable Watch My Back tile for Screen & System Audio Recording.")
+                Text("The guide opens System Settings and shows a draggable Focula tile for Screen & System Audio Recording.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -249,7 +249,7 @@ struct SettingsView: View {
                     info: "Stores only short redacted activity phrases for the dashboard log. Raw screenshots, OCR, visible text, prompts, and image data are never stored."
                 )
             }
-            Text("When enabled, Watch My Back stores a short redacted activity summary for the dashboard feed. Raw screenshots, OCR, visible text, prompts, and image data are still not stored.")
+            Text("When enabled, Focula stores a short redacted activity summary for the dashboard feed. Raw screenshots, OCR, visible text, prompts, and image data are still not stored.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Picker("Activity log", selection: Binding(
@@ -352,7 +352,7 @@ struct SettingsView: View {
 
     private var installConfirmationMessage: String {
         let descriptor = model.selectedBuiltInModelDescriptor
-        return "Watch My Back will download \(descriptor.displayName) from \(descriptor.repository). Estimated size: \(descriptor.estimatedDownloadSize). Classification stays local and raw screenshots are discarded after each request."
+        return "Focula will download \(descriptor.displayName) from \(descriptor.repository). Estimated size: \(descriptor.estimatedDownloadSize). Classification stays local and raw screenshots are discarded after each request."
     }
 
     private var providerSettingsTitle: String {
@@ -362,7 +362,7 @@ struct SettingsView: View {
     private var providerHelpText: String {
         switch model.settings.modelSelection.provider {
         case .oMLX:
-            return "oMLX is optional. Watch My Back will not install it; point this at an existing oMLX/OpenAI-compatible vision server."
+            return "oMLX is optional. Focula will not install it; point this at an existing oMLX/OpenAI-compatible vision server."
         case .lmStudio:
             return "In LM Studio, start the local server and load a vision-capable model. Then match the endpoint and model id here."
         case .openAICompatible:

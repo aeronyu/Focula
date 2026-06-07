@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showMainWindowIfNeeded(attemptsRemaining: Int = 4) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            if let existingWindow = NSApp.windows.first(where: { $0.title == "Watch My Back" && $0.canBecomeMain }) {
+            if let existingWindow = NSApp.windows.first(where: { $0.title == "Focula" && $0.canBecomeMain }) {
                 self.placeDashboardWindowOnMainScreenIfNeeded(existingWindow)
                 existingWindow.makeKeyAndOrderFront(nil)
             } else {
@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.activate(ignoringOtherApps: true)
 
             let hasVisibleDashboard = NSApp.windows.contains {
-                $0.title == "Watch My Back" && $0.isVisible
+                $0.title == "Focula" && $0.isVisible
             }
             if !hasVisibleDashboard && attemptsRemaining > 0 {
                 self.showMainWindowIfNeeded(attemptsRemaining: attemptsRemaining - 1)

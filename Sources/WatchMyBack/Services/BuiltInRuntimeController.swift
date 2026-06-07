@@ -432,7 +432,7 @@ enum BuiltInRuntimeError: LocalizedError {
         case .processFailed(let output):
             "Built-in runtime command failed: \(output)"
         case .unsafeModelDeletePath(let path):
-            "Refusing to delete a path outside Watch My Back model storage: \(path)"
+            "Refusing to delete a path outside Focula model storage: \(path)"
         }
     }
 }

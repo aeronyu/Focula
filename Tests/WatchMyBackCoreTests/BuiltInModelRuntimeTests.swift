@@ -66,6 +66,23 @@ final class BuiltInModelRuntimeTests: XCTestCase {
         )
     }
 
+    func testApplicationSupportRootMigratesLegacyFolderToFocula() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("focula-support-\(UUID().uuidString)", isDirectory: true)
+        let support = root.appendingPathComponent("Application Support", isDirectory: true)
+        let legacy = support.appendingPathComponent("Watch My Back", isDirectory: true)
+        let marker = legacy.appendingPathComponent("marker.txt")
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data("legacy model data".utf8).write(to: marker)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let migrated = try ModelSupportPaths.applicationSupportRoot(base: support)
+
+        XCTAssertEqual(migrated.lastPathComponent, "Focula")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: migrated.appendingPathComponent("marker.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+    }
+
     func testModelFolderMetadataRecognizesCatalogAndLegacyFolders() {
         let catalogFolder = ModelSupportPaths.builtInModelFolder(
             for: URL(fileURLWithPath: "/tmp/mlx-community__gemma-4-e2b-it-4bit")

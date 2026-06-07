@@ -242,10 +242,7 @@ private struct MissionDetailsPanel: View {
             if draft != nil {
                 Form {
                     Section("Mission") {
-                        TextField("Goal", text: draftBinding(\.title))
-                        DashboardDescriptionTaskList(draft: draftBinding())
-                        Toggle("Active mission", isOn: draftBinding(\.isActive))
-                        DashboardDailyTargetFields(minutes: draftBinding(\.dailyTargetMinutes))
+                        DashboardMissionFields(draft: draftBinding())
                     }
 
                     Section("Quest Hours") {
@@ -502,19 +499,9 @@ private struct DashboardLeftAlignedPlainField: View {
     let placeholder: String
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            if text.isEmpty {
-                Text(placeholder)
-                    .foregroundStyle(.tertiary)
-                    .allowsHitTesting(false)
-            }
-
-            TextField("", text: $text, axis: .vertical)
-                .lineLimit(1...3)
-                .multilineTextAlignment(.leading)
-                .textFieldStyle(.plain)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        LeadingPlainTextField(text: $text, placeholder: placeholder)
+            .frame(height: 22)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -584,25 +571,58 @@ private struct DashboardDescriptionTaskList: View {
                         .foregroundStyle(.secondary)
                         .frame(width: 6, height: 6)
                     DashboardLeftAlignedPlainField(text: $draft.descriptionItems[index], placeholder: inspiration)
-
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contextMenu {
                     if index > 0 {
                         Button(role: .destructive) {
                             draft.descriptionItems.remove(at: index)
                         } label: {
-                            Image(systemName: "trash")
+                            Label("Delete Task", systemImage: "trash")
                         }
-                        .buttonStyle(.borderless)
-                        .help("Remove task")
                     }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var inspiration: String {
         let goal = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !goal.isEmpty else { return "Describe one focused task" }
         return "Work on \(goal)"
+    }
+}
+
+private struct DashboardMissionFields: View {
+    @Binding var draft: DashboardMissionDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Goal")
+                Spacer(minLength: 16)
+                TextField("", text: $draft.title)
+                    .textFieldStyle(.plain)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 420, alignment: .trailing)
+            }
+
+            Divider()
+
+            DashboardDescriptionTaskList(draft: $draft)
+
+            Divider()
+
+            Toggle("Track mission", isOn: $draft.isActive)
+
+            Divider()
+
+            DashboardDailyTargetFields(minutes: $draft.dailyTargetMinutes)
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -692,16 +712,18 @@ private struct DashboardTimeRangeFields: View {
     }
 
     private var customFields: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: "clock")
                 .foregroundStyle(.secondary)
+                .frame(width: 18)
             TextField("", text: startText)
-                .frame(width: 86)
+                .frame(width: 104)
                 .textFieldStyle(.roundedBorder)
             Text("-")
                 .foregroundStyle(.secondary)
+                .frame(width: 14)
             TextField("", text: endText)
-                .frame(width: 86)
+                .frame(width: 104)
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -1273,7 +1295,7 @@ private enum DashboardCopy {
         case "built_in_model_not_ready":
             return "Scout is still gearing up"
         case "built_in_model_runtime_error":
-            return "Local model needs a restart"
+            return "Local model needs attention"
         case "screen_recording_permission_missing":
             return "Scout needs screen access"
         case "classifier_unavailable", "unknown":
@@ -1351,7 +1373,7 @@ private enum DashboardCopy {
         case "built_in_model_not_ready":
             return !setupState.builtInModelReady
         case "built_in_model_runtime_error":
-            return true
+            return !setupState.builtInModelReady
         case "screen_recording_permission_missing":
             return !setupState.screenRecordingGranted
         case "cloud_blocked":
@@ -1368,7 +1390,7 @@ private enum DashboardCopy {
         case "built_in_model_not_ready":
             return "Finish local model setup"
         case "built_in_model_runtime_error":
-            return "Restart local model"
+            return "Check local model"
         case "screen_recording_permission_missing":
             return "Grant Screen Recording"
         case "cloud_blocked":
@@ -1383,7 +1405,7 @@ private enum DashboardCopy {
         let action: String
         switch sample.activityCategory {
         case "built_in_model_runtime_error":
-            action = count == 1 ? "needs model restart" : "need model restart"
+            return "Model did not return a usable result · latest \(DisplayFormatters.time(sample.timestamp))"
         case "screen_recording_permission_missing":
             action = count == 1 ? "needs screen access" : "need screen access"
         case "cloud_blocked":
