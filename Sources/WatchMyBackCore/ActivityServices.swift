@@ -239,14 +239,24 @@ private extension CGRect {
 }
 
 public final class FrameDeduplicator {
-    private var lastHash: UInt64?
+    private let recentLimit: Int
+    private var recentHashes: [UInt64] = []
 
-    public init() {}
+    public init(recentLimit: Int = 4) {
+        self.recentLimit = max(1, recentLimit)
+    }
 
     public func shouldClassify(_ data: Data) -> Bool {
         let hash = Self.fnv1a64(data)
-        defer { lastHash = hash }
-        return hash != lastHash
+        defer { remember(hash) }
+        return !recentHashes.contains(hash)
+    }
+
+    private func remember(_ hash: UInt64) {
+        recentHashes.append(hash)
+        if recentHashes.count > recentLimit {
+            recentHashes.removeFirst(recentHashes.count - recentLimit)
+        }
     }
 
     private static func fnv1a64(_ data: Data) -> UInt64 {

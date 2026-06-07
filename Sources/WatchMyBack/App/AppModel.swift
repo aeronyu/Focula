@@ -48,14 +48,16 @@ final class AppModel: ObservableObject {
 
     init(
         appProvider: FrontmostAppProviding = NSWorkspaceFrontmostAppProvider(),
-        captureProvider: ScreenSnapshotProviding = ScreenCaptureKitSnapshotProvider()
+        captureProvider: ScreenSnapshotProviding = ScreenCaptureKitSnapshotProvider(),
+        storePath: String? = nil,
+        startServices: Bool = true
     ) {
         self.appProvider = appProvider
         self.captureProvider = captureProvider
 
         do {
-            let url = try DatabaseStore.applicationStoreURL()
-            let store = try DatabaseStore(path: url.path)
+            let path = try storePath ?? DatabaseStore.applicationStoreURL().path
+            let store = try DatabaseStore(path: path)
             self.store = store
             settings = try store.fetchSettings()
             normalizeBuiltInModelSelection()
@@ -73,11 +75,13 @@ final class AppModel: ObservableObject {
 
         refreshRuntimeStatuses()
         refreshBuiltInModelFolders()
-        startSleepWakeObservers()
-        startPermissionRefreshTimer()
-        NotificationNudgePresenter.shared.requestAuthorization()
+        if startServices {
+            startSleepWakeObservers()
+            startPermissionRefreshTimer()
+            NotificationNudgePresenter.shared.requestAuthorization()
+        }
         updateIdleTrackingStatus()
-        if !settings.paused {
+        if startServices, !settings.paused {
             startTimer()
         }
     }

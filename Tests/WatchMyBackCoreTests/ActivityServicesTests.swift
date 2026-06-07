@@ -12,6 +12,29 @@ final class ActivityServicesTests: XCTestCase {
         XCTAssertTrue(deduplicator.shouldClassify(Data([1, 2, 3, 4, 6])))
     }
 
+    func testFrameDeduplicatorSkipsFramesSeenInRecentWindow() {
+        let deduplicator = FrameDeduplicator(recentLimit: 3)
+        let first = Data([1])
+        let second = Data([2])
+        let third = Data([3])
+
+        XCTAssertTrue(deduplicator.shouldClassify(first))
+        XCTAssertTrue(deduplicator.shouldClassify(second))
+        XCTAssertFalse(deduplicator.shouldClassify(first))
+        XCTAssertTrue(deduplicator.shouldClassify(third))
+        XCTAssertFalse(deduplicator.shouldClassify(second))
+    }
+
+    func testFrameDeduplicatorClassifiesAgainAfterRecentWindowRollsOver() {
+        let deduplicator = FrameDeduplicator(recentLimit: 2)
+        let first = Data([1])
+
+        XCTAssertTrue(deduplicator.shouldClassify(first))
+        XCTAssertTrue(deduplicator.shouldClassify(Data([2])))
+        XCTAssertTrue(deduplicator.shouldClassify(Data([3])))
+        XCTAssertTrue(deduplicator.shouldClassify(first))
+    }
+
     @MainActor
     func testScreenCaptureProviderFailsBeforeCaptureWhenPermissionMissing() async throws {
         let provider = ScreenCaptureKitSnapshotProvider(
