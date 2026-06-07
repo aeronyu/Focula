@@ -38,6 +38,8 @@ final class AppModel: ObservableObject {
     private let deduplicator = FrameDeduplicator()
     private let nudgeCoordinator = NudgeCoordinator()
     private let activityWindowAnalyzer = ActivityWindowAnalyzer()
+    private let activitySampleRetentionDays = 14
+    private let activitySampleRetentionPerGoal = 240
     private var timer: Timer?
     private var permissionRefreshTimer: Timer?
     private var sleepWakeObservers: [NSObjectProtocol] = []
@@ -540,6 +542,7 @@ final class AppModel: ObservableObject {
 
         do {
             try store?.saveActivitySample(sample)
+            try pruneStoredActivitySamples(now: now)
             lastSampleAt = now
             activityWindowSummary = windowSummary
             lastFocusState = result.focusState
@@ -822,6 +825,19 @@ final class AppModel: ObservableObject {
             lastSampleAt: lastSampleAt,
             now: now,
             fallbackInterval: settings.sampleIntervalSeconds
+        )
+    }
+
+    private func pruneStoredActivitySamples(now: Date) throws {
+        guard let cutoff = Calendar.current.date(
+            byAdding: .day,
+            value: -activitySampleRetentionDays,
+            to: now
+        ) else { return }
+
+        _ = try store?.pruneActivitySamples(
+            olderThan: cutoff,
+            keepingRecentPerGoal: activitySampleRetentionPerGoal
         )
     }
 

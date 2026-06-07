@@ -99,6 +99,81 @@ final class DatabaseStoreTests: XCTestCase {
         XCTAssertEqual(try store.fetchRecentSamples(limit: 1).first?.activitySummary, "Editing Swift")
     }
 
+    func testPrunesOldActivitySamplesWhileKeepingRecentSamplesPerGoal() throws {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("watch-my-back-prune-\(UUID().uuidString).sqlite")
+            .path
+        let store = try DatabaseStore(path: path)
+        let firstGoal = Goal.starter
+        var secondGoal = Goal.starter
+        secondGoal.id = UUID()
+        secondGoal.title = "Study Swift"
+
+        try store.saveGoal(firstGoal)
+        try store.saveGoal(secondGoal)
+        for index in 0..<5 {
+            try store.saveActivitySample(sample(
+                goalID: firstGoal.id,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(index * 60)),
+                summary: "First \(index)"
+            ))
+            try store.saveActivitySample(sample(
+                goalID: secondGoal.id,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(index * 60)),
+                summary: "Second \(index)"
+            ))
+        }
+
+        let deleted = try store.pruneActivitySamples(
+            olderThan: Date(timeIntervalSince1970: 10_000),
+            keepingRecentPerGoal: 2
+        )
+        let remaining = try store.fetchRecentSamples(limit: 20)
+
+        XCTAssertEqual(deleted, 6)
+        XCTAssertEqual(remaining.count, 4)
+        XCTAssertEqual(
+            Set(remaining.compactMap(\.activitySummary)),
+            ["First 3", "First 4", "Second 3", "Second 4"]
+        )
+    }
+
+    func testPruneKeepsNewerSamplesEvenAfterRecentQuota() throws {
+        let path = FileManager.default.temporaryDirectory
+            .appendingPathComponent("watch-my-back-prune-new-\(UUID().uuidString).sqlite")
+            .path
+        let store = try DatabaseStore(path: path)
+        let goal = Goal.starter
+        try store.saveGoal(goal)
+        for index in 0..<4 {
+            try store.saveActivitySample(sample(
+                goalID: goal.id,
+                timestamp: Date(timeIntervalSince1970: TimeInterval(index * 60)),
+                summary: "Old \(index)"
+            ))
+        }
+        for index in 0..<3 {
+            try store.saveActivitySample(sample(
+                goalID: goal.id,
+                timestamp: Date(timeIntervalSince1970: 10_000 + TimeInterval(index * 60)),
+                summary: "New \(index)"
+            ))
+        }
+
+        let deleted = try store.pruneActivitySamples(
+            olderThan: Date(timeIntervalSince1970: 1_000),
+            keepingRecentPerGoal: 2
+        )
+        let remaining = try store.fetchRecentSamples(limit: 20)
+
+        XCTAssertEqual(deleted, 4)
+        XCTAssertEqual(remaining.count, 3)
+        XCTAssertEqual(
+            Set(remaining.compactMap(\.activitySummary)),
+            ["New 0", "New 1", "New 2"]
+        )
+    }
+
     private func createLegacyActivitySamplesTable(path: String) throws {
         var db: OpaquePointer?
         guard sqlite3_open(path, &db) == SQLITE_OK, let db else {
@@ -123,5 +198,20 @@ final class DatabaseStoreTests: XCTestCase {
         """
 
         XCTAssertEqual(sqlite3_exec(db, sql, nil, nil, nil), SQLITE_OK)
+    }
+
+    private func sample(goalID: UUID, timestamp: Date, summary: String) -> ActivitySample {
+        ActivitySample(
+            timestamp: timestamp,
+            appName: "Xcode",
+            bundleIdentifier: "com.apple.dt.Xcode",
+            goalID: goalID,
+            focusState: .onGoal,
+            activityCategory: "coding",
+            activitySummary: summary,
+            confidence: 0.9,
+            durationSeconds: 60,
+            nudgeShown: false
+        )
     }
 }

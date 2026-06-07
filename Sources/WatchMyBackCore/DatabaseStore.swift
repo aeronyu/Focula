@@ -157,6 +157,41 @@ public final class DatabaseStore {
         }
     }
 
+    @discardableResult
+    public func pruneActivitySamples(
+        olderThan cutoff: Date,
+        keepingRecentPerGoal keepCount: Int
+    ) throws -> Int {
+        let keepCount = max(0, keepCount)
+        let rows = try activitySampleRetentionRows()
+        var keptByGoal: [UUID: Int] = [:]
+        var deleteIDs: [UUID] = []
+
+        for row in rows {
+            let retained = keptByGoal[row.goalID, default: 0]
+            if retained < keepCount {
+                keptByGoal[row.goalID] = retained + 1
+                continue
+            }
+            if row.timestamp < cutoff {
+                deleteIDs.append(row.id)
+            }
+        }
+
+        guard !deleteIDs.isEmpty else { return 0 }
+
+        let sql = "DELETE FROM activity_samples WHERE id = ?;"
+        try withStatement(sql) { statement in
+            for id in deleteIDs {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+                bindText(statement, 1, id.uuidString)
+                try step(statement)
+            }
+        }
+        return deleteIDs.count
+    }
+
     public func dailyStats(for date: Date, calendar: Calendar = .current) throws -> DailyStats {
         let start = calendar.startOfDay(for: date)
         guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
@@ -302,6 +337,32 @@ public final class DatabaseStore {
         try execute("ALTER TABLE \(table) ADD COLUMN \(column) \(definition);")
     }
 
+    private func activitySampleRetentionRows() throws -> [ActivitySampleRetentionRow] {
+        let sql = """
+        SELECT id, goal_id, timestamp
+        FROM activity_samples
+        ORDER BY goal_id ASC, timestamp DESC;
+        """
+
+        return try withStatement(sql) { statement in
+            var rows: [ActivitySampleRetentionRow] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                guard let id = UUID(uuidString: columnText(statement, 0)),
+                      let goalID = UUID(uuidString: columnText(statement, 1))
+                else {
+                    throw DatabaseStoreError.decodeFailed
+                }
+
+                rows.append(ActivitySampleRetentionRow(
+                    id: id,
+                    goalID: goalID,
+                    timestamp: Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
+                ))
+            }
+            return rows
+        }
+    }
+
     private func tableColumns(_ table: String) throws -> Set<String> {
         try withStatement("PRAGMA table_info(\(table));") { statement in
             var columns = Set<String>()
@@ -363,6 +424,12 @@ public final class DatabaseStore {
             nudgeShown: sqlite3_column_int(statement, 10) == 1
         )
     }
+}
+
+private struct ActivitySampleRetentionRow {
+    let id: UUID
+    let goalID: UUID
+    let timestamp: Date
 }
 
 private let transientDestructor = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
