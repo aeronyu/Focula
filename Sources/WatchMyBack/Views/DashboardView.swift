@@ -236,6 +236,12 @@ private struct MissionDetailsPanel: View {
             HStack {
                 Label("Mission Details", systemImage: "square.and.pencil")
                     .font(.title3.bold())
+                if draft != nil {
+                    Toggle("Track mission", isOn: draftBinding(\.isActive))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .help("Track mission")
+                }
                 Spacer()
             }
 
@@ -552,8 +558,10 @@ private struct DashboardDescriptionTaskList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            HStack(alignment: .center) {
                 Text(draft.descriptionItems.count == 1 ? "Task" : "Tasks")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button {
                     draft.descriptionItems.append("")
@@ -600,22 +608,23 @@ private struct DashboardMissionFields: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Goal")
-                Spacer(minLength: 16)
-                TextField("", text: $draft.title)
-                    .textFieldStyle(.plain)
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 420, alignment: .trailing)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                LeadingPlainTextField(text: $draft.title, placeholder: "Goal")
+                    .padding(.horizontal, 8)
+                    .frame(height: 28)
+                    .background(.background, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
+                    }
             }
 
             Divider()
 
             DashboardDescriptionTaskList(draft: $draft)
-
-            Divider()
-
-            Toggle("Track mission", isOn: $draft.isActive)
 
             Divider()
 
@@ -667,20 +676,10 @@ private struct DashboardTimeRangeFields: View {
     @State private var selectedPreset: DashboardQuestHoursPreset = .custom
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                presets
-                Spacer(minLength: 12)
-                if selectedPreset == .custom {
-                    customFields
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                presets
-                if selectedPreset == .custom {
-                    customFields
-                }
+        VStack(alignment: .leading, spacing: 10) {
+            presets
+            if selectedPreset == .custom {
+                customFields
             }
         }
         .onAppear {
@@ -712,20 +711,23 @@ private struct DashboardTimeRangeFields: View {
     }
 
     private var customFields: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 18) {
             Image(systemName: "clock")
                 .foregroundStyle(.secondary)
-                .frame(width: 18)
+                .frame(width: 20, alignment: .center)
             TextField("", text: startText)
-                .frame(width: 104)
+                .multilineTextAlignment(.center)
+                .frame(width: 108)
                 .textFieldStyle(.roundedBorder)
             Text("-")
                 .foregroundStyle(.secondary)
-                .frame(width: 14)
+                .frame(width: 24, alignment: .center)
             TextField("", text: endText)
-                .frame(width: 104)
+                .multilineTextAlignment(.center)
+                .frame(width: 108)
                 .textFieldStyle(.roundedBorder)
         }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var startText: Binding<String> {
