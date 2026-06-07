@@ -16,7 +16,11 @@ struct LeadingPlainTextField: NSViewRepresentable {
         field.isEditable = true
         field.isSelectable = true
         field.alignment = .left
-        field.lineBreakMode = .byTruncatingTail
+        field.focusRingType = .none
+        field.lineBreakMode = .byWordWrapping
+        field.maximumNumberOfLines = 0
+        field.cell?.wraps = true
+        field.cell?.isScrollable = false
         field.delegate = context.coordinator
         field.font = .preferredFont(forTextStyle: .body)
         field.placeholderString = placeholder
@@ -29,6 +33,11 @@ struct LeadingPlainTextField: NSViewRepresentable {
         }
         nsView.placeholderString = placeholder
         nsView.alignment = .left
+        nsView.focusRingType = .none
+        nsView.lineBreakMode = .byWordWrapping
+        nsView.maximumNumberOfLines = 0
+        nsView.cell?.wraps = true
+        nsView.cell?.isScrollable = false
     }
 
     final class Coordinator: NSObject, NSTextFieldDelegate {

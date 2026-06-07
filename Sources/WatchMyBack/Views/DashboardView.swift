@@ -506,7 +506,7 @@ private struct DashboardLeftAlignedPlainField: View {
 
     var body: some View {
         LeadingPlainTextField(text: $text, placeholder: placeholder)
-            .frame(height: 22)
+            .frame(minHeight: 22)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -580,6 +580,15 @@ private struct DashboardDescriptionTaskList: View {
                         .frame(width: 6, height: 6)
                     DashboardLeftAlignedPlainField(text: $draft.descriptionItems[index], placeholder: inspiration)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    Button(role: .destructive) {
+                        draft.descriptionItems.remove(at: index)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Delete task")
+                    .opacity(draft.descriptionItems.count > 1 ? 1 : 0)
+                    .disabled(draft.descriptionItems.count <= 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contextMenu {
@@ -612,14 +621,8 @@ private struct DashboardMissionFields: View {
                 Text("Goal")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                LeadingPlainTextField(text: $draft.title, placeholder: "Goal")
-                    .padding(.horizontal, 8)
-                    .frame(height: 28)
-                    .background(.background, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(Color.secondary.opacity(0.22), lineWidth: 1)
-                    }
+                LeadingPlainTextField(text: $draft.title, placeholder: "Enter your goal")
+                    .frame(minHeight: 28)
             }
 
             Divider()
