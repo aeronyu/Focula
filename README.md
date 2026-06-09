@@ -2,6 +2,10 @@
 
 Focula is a local-first macOS focus coach. It lets you define a few goals, watches frontmost app activity during focus hours, classifies ephemeral screenshots with a built-in local Gemma vision model, and nudges you when your work drifts off mission.
 
+## Product spec
+
+See [docs/product-spec.md](docs/product-spec.md) for the current product and implementation spec, including implemented areas, suspected gaps, and proposed roadmap slices.
+
 ## Screenshots
 
 ![Dashboard overview showing the active mission, focus metrics, and local activity log](docs/screenshots/dashboard.png)
