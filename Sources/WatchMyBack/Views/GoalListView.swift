@@ -211,10 +211,10 @@ private struct GoalRow: View {
         HStack(alignment: .top, spacing: 10) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(statusColor.opacity(goal.isActive ? 0.14 : 0.08))
+                    .fill(.quaternary)
                 Image(systemName: goal.isActive ? "scope" : "circle")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(statusColor)
+                    .foregroundStyle(.primary)
             }
             .frame(width: 28, height: 28)
 
