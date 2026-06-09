@@ -1,15 +1,3 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/greenpoke/.local/bin/graphify hook-check"
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
