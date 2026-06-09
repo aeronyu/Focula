@@ -226,10 +226,10 @@ private struct GoalRow: View {
                 HStack(spacing: 5) {
                     Text("\(goal.dailyTargetMinutes)m")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
-                        .background(statusColor.opacity(0.12), in: Capsule())
+                        .background(.quaternary, in: Capsule())
 
                     Text(scheduleSummary)
                         .font(.caption)
