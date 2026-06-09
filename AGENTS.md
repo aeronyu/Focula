@@ -10,7 +10,7 @@ Shell -> `rtk <cmd>` first. RTK hook block -> retry suggested `rtk` cmd.
 
 @/Users/greenpoke/.agents/RTK.md
 
-Before finishing any task, release memory by stopping processes started or clearly leaked by the work, regardless of project. Check for stale app runtimes, dev/test servers, Python sessions, Node sessions, MCP helpers, viewer servers, browser/computer-use helpers, and sidecar processes. Clean as you work when practical. Do not kill Apple launchd/XPC services such as `MTLCompilerService`, `SetStoreUpdateService`, or `distnoted` unless explicitly asked and they are confirmed to be using abnormal CPU or memory.
+Cleanup -> @/Users/greenpoke/.agents/CLEANUP.md
 
 ## Superpowers-inspired workflow
 
