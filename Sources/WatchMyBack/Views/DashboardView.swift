@@ -1378,7 +1378,7 @@ private enum DashboardCopy {
         case "built_in_model_not_ready":
             return !setupState.builtInModelReady
         case "built_in_model_runtime_error":
-            return !setupState.builtInModelReady
+            return true
         case "screen_recording_permission_missing":
             return !setupState.screenRecordingGranted
         case "cloud_blocked":

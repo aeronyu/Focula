@@ -46,15 +46,44 @@ final class ActivityLogCompactorTests: XCTestCase {
         XCTAssertEqual(blocks.count, 2)
     }
 
+    func testSplitsWhenAppChanges() {
+        let goalID = UUID()
+        let samples = [
+            sample(at: 0, goalID: goalID, appName: "SenPlayer", bundleIdentifier: "com.example.player"),
+            sample(at: 60, goalID: goalID, appName: "Codex", bundleIdentifier: "com.openai.codex")
+        ]
+
+        let blocks = ActivityLogCompactor.compact(samples: samples)
+
+        XCTAssertEqual(blocks.count, 2)
+        XCTAssertEqual(blocks.map(\.appName), ["Codex", "SenPlayer"])
+    }
+
+    func testSplitsWhenGoalChanges() {
+        let firstGoalID = UUID()
+        let secondGoalID = UUID()
+        let samples = [
+            sample(at: 0, goalID: firstGoalID),
+            sample(at: 60, goalID: secondGoalID)
+        ]
+
+        let blocks = ActivityLogCompactor.compact(samples: samples)
+
+        XCTAssertEqual(blocks.count, 2)
+        XCTAssertEqual(blocks.map(\.goalID), [secondGoalID, firstGoalID])
+    }
+
     private func sample(
         at offset: TimeInterval,
         goalID: UUID,
-        summary: String = "Watching a recorded lecture"
+        summary: String = "Watching a recorded lecture",
+        appName: String = "SenPlayer",
+        bundleIdentifier: String = "com.example.player"
     ) -> ActivitySample {
         ActivitySample(
             timestamp: Date(timeIntervalSince1970: offset),
-            appName: "SenPlayer",
-            bundleIdentifier: "com.example.player",
+            appName: appName,
+            bundleIdentifier: bundleIdentifier,
             goalID: goalID,
             focusState: .onGoal,
             activityCategory: "video_learning",
