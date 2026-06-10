@@ -5,5 +5,3 @@ dist/
 .superpowers/
 *.xcuserdata/
 DerivedData/
-graphify-out/
-.graphify_*
