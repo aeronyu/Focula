@@ -37,7 +37,8 @@ Storage:
 
 - Runtime path: `~/Library/Application Support/Focula/BuiltInRuntime`
 - Model path: `~/Library/Application Support/Focula/BuiltInRuntime/Models`
-- Existing development installs may still have older data under `~/Library/Application Support/Watch My Back`.
+- The main SQLite store is `~/Library/Application Support/Focula/focula.sqlite`.
+- Existing development installs under `~/Library/Application Support/Watch My Back/watch-my-back.sqlite` are migrated on launch.
 - Sidecar: app-owned loopback service at `127.0.0.1:8765` while the app is running
 
 Older settings that pointed at `google/gemma-4-E2B-it` are migrated to the recommended MLX 4-bit built-in model. Settings lists installed model folders, including legacy folders such as `google__gemma-4-E2B-it`, and Delete removes only the folders the user selects.
@@ -65,7 +66,7 @@ Ollama is intentionally out of scope.
 The run script stages a normal app bundle at `dist/Focula.app`, copies SwiftPM resources, and signs the bundle. It uses the first available Apple Development identity by default; override with:
 
 ```bash
-WMB_CODESIGN_IDENTITY="Apple Development: Name (TEAMID)" ./script/build_and_run.sh
+FOCULA_CODESIGN_IDENTITY="Apple Development: Name (TEAMID)" ./script/build_and_run.sh
 ```
 
 If Screen Recording was granted to an older unsigned build, remove the old Focula row in System Settings, rebuild through the script, then use the in-app permission guide to grant the newly signed app.
@@ -82,7 +83,7 @@ The app may request Notification permission and Screen & System Audio Recording 
 
 The source app icon is SVG-first so the design stays sharp before raster conversion:
 
-- `Sources/WatchMyBack/Resources/AppIcon/WatchMyBackAppIcon.svg`
-- `Sources/WatchMyBack/Resources/AppIcon/WatchMyBack.icns`
+- `Sources/Focula/Resources/AppIcon/FoculaAppIcon.svg`
+- `Sources/Focula/Resources/AppIcon/Focula.icns`
 
 The `.icns` file is generated from the SVG and wired into the staged app bundle as `CFBundleIconFile`.

@@ -3,31 +3,31 @@
 import PackageDescription
 
 let package = Package(
-    name: "WatchMyBack",
+    name: "Focula",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "WatchMyBackCore", targets: ["WatchMyBackCore"]),
-        .executable(name: "WatchMyBack", targets: ["WatchMyBack"])
+        .library(name: "FoculaCore", targets: ["FoculaCore"]),
+        .executable(name: "Focula", targets: ["Focula"])
     ],
     targets: [
         .target(
-            name: "WatchMyBackCore",
+            name: "FoculaCore",
             linkerSettings: [
                 .linkedLibrary("sqlite3")
             ]
         ),
         .executableTarget(
-            name: "WatchMyBack",
-            dependencies: ["WatchMyBackCore"],
+            name: "Focula",
+            dependencies: ["FoculaCore"],
             resources: [
                 .copy("Resources")
             ]
         ),
         .testTarget(
-            name: "WatchMyBackCoreTests",
-            dependencies: ["WatchMyBackCore"]
+            name: "FoculaCoreTests",
+            dependencies: ["FoculaCore"]
         )
     ]
 )

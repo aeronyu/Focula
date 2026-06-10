@@ -2,7 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="WatchMyBack"
+APP_NAME="Focula"
 APP_DISPLAY_NAME="Focula"
 BUNDLE_ID="dev.aeronyu.Focula"
 MIN_SYSTEM_VERSION="14.0"
@@ -10,7 +10,7 @@ MIN_SYSTEM_VERSION="14.0"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_DISPLAY_NAME.app"
-STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/watch-my-back.XXXXXX")"
+STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/focula.XXXXXX")"
 trap 'rm -rf "$STAGING_DIR"' EXIT
 STAGED_APP_BUNDLE="$STAGING_DIR/$APP_DISPLAY_NAME.app"
 APP_CONTENTS="$STAGED_APP_BUNDLE/Contents"
@@ -18,8 +18,8 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
-APP_ICON_NAME="WatchMyBack"
-APP_ICON_SOURCE="$ROOT_DIR/Sources/WatchMyBack/Resources/AppIcon/$APP_ICON_NAME.icns"
+APP_ICON_NAME="Focula"
+APP_ICON_SOURCE="$ROOT_DIR/Sources/Focula/Resources/AppIcon/$APP_ICON_NAME.icns"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -71,7 +71,7 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
-SIGNING_IDENTITY="${WMB_CODESIGN_IDENTITY:-}"
+SIGNING_IDENTITY="${FOCULA_CODESIGN_IDENTITY:-}"
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   SIGNING_IDENTITY="$(security find-identity -p codesigning -v 2>/dev/null | awk -F\" '/Apple Development/ {print $2; exit}')"
 fi

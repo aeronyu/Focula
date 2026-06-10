@@ -142,9 +142,9 @@ Older history shows work on sustained drift analysis, dashboard layout, mission 
 - `✅` Activity samples are pruned after 14 days while keeping up to 240 recent samples per goal.
 - `✅` Recent samples are fetched with a limit of 240 for dashboard/window analysis.
 - `✅` Activity log blocks compact consecutive similar samples.
-- `🟡` Built-in model/runtime storage has moved to `~/Library/Application Support/Focula/BuiltInRuntime`.
-- `⚠️` The main SQLite store still appears to use `~/Library/Application Support/Watch My Back/watch-my-back.sqlite`. This may be intentional for migration safety, but it conflicts with the Focula rename and should be decided explicitly.
-- `⚠️` If the main database moves to `~/Library/Application Support/Focula`, migration should preserve existing goals, settings, and activity samples from the legacy path.
+- `✅` Built-in model/runtime storage lives under `~/Library/Application Support/Focula/BuiltInRuntime`.
+- `✅` The main SQLite store uses `~/Library/Application Support/Focula/focula.sqlite`.
+- `✅` Legacy `~/Library/Application Support/Watch My Back/watch-my-back.sqlite` data migrates into the Focula store path.
 
 ## Drift, Nudges, and Coaching
 
@@ -163,8 +163,8 @@ Older history shows work on sustained drift analysis, dashboard layout, mission 
 - `✅` The app provides a normal dashboard window, Settings scene, app commands, and menu bar extra.
 - `✅` Menu commands support pause/resume, sample now, Screen Recording guide, model testing, sidecar pause, built-in model selection, model folder opening, and provider switching.
 - `✅` The menu bar icon changes with the current focus state.
-- `🟡` The SwiftPM package, module, target, executable, resource bundle, app icon filenames, and app struct still use WatchMyBack naming internally.
-- `⚠️` Internal naming may be acceptable short term, but a full product rename should decide whether module/executable/resource names should become Focula. Renaming these affects build scripts, tests, bundle internals, permissions, and existing user data.
+- `✅` The SwiftPM package, module, target, executable, resource bundle, app icon filenames, and app struct use Focula naming internally.
+- `✅` Legacy Watch My Back strings remain only where needed for app-support data migration.
 
 ## Build, Packaging, and Permissions
 
@@ -172,29 +172,28 @@ Older history shows work on sustained drift analysis, dashboard layout, mission 
 - `✅` The bundle display name and bundle ID are Focula-oriented.
 - `✅` The app includes `NSScreenCaptureUsageDescription`.
 - `✅` The build script supports verify, debug, logs, and telemetry modes.
-- `🟡` The staged app executable is still named `WatchMyBack`.
-- `🟡` The temporary staging path still uses a `watch-my-back` prefix.
+- `✅` The staged app executable is named `Focula`.
+- `✅` The temporary staging path uses a `focula` prefix.
 - `⚠️` The top-directory rename can leave stale SwiftPM module cache paths in `.build`; `swift package clean` fixes it. The README should mention this if renaming or moving the checkout remains common.
 
 ## Testing and Verification
 
 - `✅` Test coverage exists for database persistence/migration/privacy, model providers, built-in runtime state, classifier parsing/redaction, activity services, display context selection, frame deduplication, sampling policy, focus schedule, rolling activity windows, nudges, and streak calculation.
-- `✅` Current practical verification after the rename: `rtk ./script/build_and_run.sh --verify` and `rtk swift test`.
+- `✅` Current practical verification after the rename: `rtk swift test` passes 51 tests.
 - `✅` Current UI verification: Computer Use confirmed toolbar controls, selected mission row text/icon contrast, and Activity Log text render in light mode.
 - `✅` Current Scout Now verification: clicking Scout Now persisted a sample, reloaded the Activity Log, and showed a visible runtime-error setup row when the local model failed instead of hiding the row as resolved setup noise.
 - `✅` Current log merge verification: repeated Scout Now runtime errors merge into one setup row with the latest timestamp; compactor tests cover split behavior for different activity summaries, apps, goals, and long gaps.
 - `🟡` UI behavior is mostly verified by code review/manual run rather than automated UI tests.
-- `⚠️` Add targeted tests for Focula data-path migration once the main database path decision is made.
+- `✅` Targeted tests cover Focula data-path migration from the legacy folder and database filename.
 - `⚠️` Add tests that prove runtime-failure notification preferences produce notifications or intentionally only affect status surfaces.
 
 ## Suggested Roadmap
 
 ### Slice 1: Finish Rename Consistency
 
-- Decide whether internal names remain WatchMyBack or move fully to Focula.
-- If moving fully, rename SwiftPM package/products/targets/modules, source folders, resource bundle names, executable name, icon names, build script variables, tests, and temp paths in one controlled branch.
-- Resolve the main SQLite path: either document legacy path as intentional or migrate to `Application Support/Focula`.
-- Add migration tests before changing stored data paths.
+- `✅` Rename SwiftPM package/products/targets/modules, source folders, resource bundle names, executable name, icon names, build script variables, tests, and temp paths to Focula.
+- `✅` Move the main SQLite path to `Application Support/Focula/focula.sqlite`.
+- `✅` Preserve migration from the legacy `Watch My Back` app-support folder and database filename.
 
 ### Slice 2: Make Multi-Mission Tracking Explainable
 
@@ -225,8 +224,6 @@ Older history shows work on sustained drift analysis, dashboard layout, mission 
 
 ## Open Decisions
 
-- Should the app’s internal executable/module names be renamed from WatchMyBack to Focula now, or deferred until after product behavior stabilizes?
-- Should the main SQLite database move from `Application Support/Watch My Back` to `Application Support/Focula`?
 - Should daily stats be global, selected-mission scoped, or both?
 - Should recent screenshot context be retained across manual samples and mission changes, or cleared aggressively?
 - Should classifier-provided `nudgeSuggested` influence nudges, or should nudges remain entirely deterministic from recent samples?
